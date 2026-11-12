@@ -11,3 +11,7 @@ blender/*.blend1
 .idea/
 # Local Claude Code / preview settings
 .claude/
+# Lokale Backups und Testdateien
+public/data.json.bak
+pruefung.json
+*.tmp
