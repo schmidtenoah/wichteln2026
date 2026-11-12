@@ -9,3 +9,5 @@ wunschlisten-sicherung*.json
 blender/*.blend1
 # Editor settings
 .idea/
+# Local Claude Code / preview settings
+.claude/

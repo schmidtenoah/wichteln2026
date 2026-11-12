@@ -53,7 +53,7 @@ Dann nicht neu auslosen, sondern umstellen. Auslosung und Passwörter bleiben ge
 
 ## 2. Auf GitHub Pages veröffentlichen (kostenlos)
 
-1. Neues Repository auf GitHub anlegen. Öffentlich ist okay, `data.json` ist verschlüsselt.
+1. Neues Repository auf GitHub anlegen, **öffentlich** (GitHub Pages ist im kostenlosen Konto nur für öffentliche Repositories da). Das ist okay: `data.json` ist verschlüsselt, `passwoerter.txt` steht in `.gitignore`.
 2. Alles pushen, inklusive `public/data.json`:
    ```sh
    git init
@@ -64,7 +64,7 @@ Dann nicht neu auslosen, sondern umstellen. Auslosung und Passwörter bleiben ge
    git push -u origin main
    ```
 3. Auf GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-4. Der Workflow `.github/workflows/pages.yml` veröffentlicht `public/` bei jedem Push auf `main`. Nach etwa einer Minute ist die Seite unter `https://DEIN-NAME.github.io/wichteln/` erreichbar, die Verwaltung unter `https://DEIN-NAME.github.io/wichteln/admin.html`.
+4. Der Workflow `.github/workflows/pages.yml` veröffentlicht nur den Ordner `public/`, bei jedem Push auf `main` (Fortschritt unter **Actions**). Nach etwa einer Minute ist die Seite unter `https://DEIN-NAME.github.io/wichteln/` erreichbar, die Verwaltung unter `https://DEIN-NAME.github.io/wichteln/admin.html`.
 
 ## 3. Passwörter verschicken
 
@@ -114,7 +114,7 @@ node tools/generate.mjs --force --wishes wunschlisten-sicherung.json
 - Einen geschmückten Weihnachtsbaum, darunter für jede Person ein Geschenk in eigenem Papier. An jedem hängt an einer Kordel ein Papieranhänger (mitgerendert, mit Licht und Schatten), darauf der Name in Handschrift.
 - Tippt man auf das eigene Geschenk, kommt der Anhänger groß nach vorn. Unten verschließt ihn ein Wachssiegel „Freigeben“ (mit Licht und Relief, der Schriftzug im Bogen auf dem Siegel). Mit dem Passwort bricht das Siegel in zwei Hälften, die auf dem Anhänger bleiben, und der Name wird auf die Für-Zeile geschrieben.
 - Dann fliegt die Seite **in dasselbe Bild hinein**, hinunter zu genau diesem Geschenk; der Raum wird dabei unscharf, das Geschenk bleibt scharf. Unterwegs übernimmt das 3D-Geschenk den Platz des gerenderten (gleiche Kamera wie in Blender, ein Ausschnitt ohne das Geschenk deckt das gerenderte ab). Geschenke, die davor stehen, verdecken es weiterhin. Die Kordel verschwindet sofort, der Anhänger selbst (dasselbe Element, kein Ersatzbild) fliegt hinunter und lehnt sich an den Karton.
-- Die Schleife fällt, der Deckel springt ab und landet daneben, Licht strömt heraus, und der **Wunschzettel** steigt aus dem Licht auf: eine Karte, die Wünsche frei darauf verteilt, jeweils freigestelltes Bild, kursiver Name und ein kleiner gezeichneter Pfeil. Ist die Liste noch nicht da, zeigt der Zettel „Noch ganz leer.“ mit Platzhaltern (Schnittmarken), bis die Redaktion nachträgt.
+- Die Schleife fällt, der Deckel springt ab und landet daneben, Licht strömt heraus, und der **Wunschzettel** steigt aus dem Licht auf: eine Karte mit feinem Goldrahmen (Budget und Bescherung sitzen in der oberen Rahmenlinie, „Die Wichtel-Redaktion“ in der unteren), oben eine Schleife mit Tannenzweigen, die Wünsche frei darauf verteilt: freigestelltes Bild, kursiver Name, ein kleiner goldener Pfeil. Ist die Liste noch nicht da, zeigt der Zettel „Noch ganz leer.“, das Versprechen der Redaktion („Spätestens am 1. Dezember steht hier alles drauf.“) und drei gestrichelte Platzhalter.
 - Antippen: Der Zettel kommt nach vorn und ist lesbar; Bild oder Name öffnen den Link im neuen Tab. Zurück legt ihn wieder über das Geschenk, nochmal Zurück fliegt aus dem Bild heraus zum Baum.
 - Oben „Mein Wunschzettel“: die **eigene** Wunschliste, um zu prüfen, ob alles angekommen ist.
 
@@ -126,6 +126,7 @@ Stehen in `public/config.js`:
 
 - `budget`: Betrag in Euro (50), `budgetTolerance`: wie viel drüber noch als „passt“ gilt (3).
 - `date`, `place`: Platzhalter, trag die echten ein. Leeres `place` blendet die Zeile aus.
+- `wishDeadline`: bis wann alle Wunschzettel drin sind (`'1. Dezember'`), steht auf leeren Wunschzetteln.
 - `organizer`: wem man Wünsche schickt (erscheint auf der Seite).
 - `organizerWhatsApp`: optional deine Nummer (z. B. `'491701234567'`), dann gibt es einen „Wünsche schicken“-Knopf. Achtung: `config.js` ist öffentlich.
 
@@ -156,6 +157,9 @@ Gut genug gegen Neugier, nicht gegen Entschlossenheit, und für Wichteln ist das
 - Jeder Block ist an seinen Namen gebunden und lässt sich nicht auf einen anderen Namen umkopieren. Ergebnisse sind gleich lang, Wunschlisten auf 512-Byte-Stufen aufgefüllt.
 - Die Passwörter sind bewusst leicht zu tippen. Wer sehr viel Rechenzeit investiert, könnte sie durchprobieren. Das Admin-Passwort ist deshalb länger.
 - Wer die Passwörter verschickt, kennt sie alle und könnte theoretisch reinschauen. Ehrensache.
+- Auf der Seite selbst: Suchmaschinen und Crawler bleiben draußen (`robots.txt`, `noindex`), die Seiten lassen sich nicht in fremde Seiten einbetten, und wer im Anhänger Passwörter durchprobiert, muss ab dem dritten Fehlversuch immer länger warten (bis 60 s). Strenge Inhaltsregeln (CSP): kein fremdes Skript, keine fremden Bilder, Links in Wunschzetteln nur `http(s)`.
+- Ehrlich gesagt: Gegen jemanden, der `data.json` herunterlädt und mit einer starken Grafikkarte offline rät, hilft keine Bot-Sperre. Bei rund 200.000 möglichen Passwörtern pro Person ist das eine Frage von Minuten. Wer das ausschließen will, lost mit längeren Passwörtern neu aus (dann müssen alle neu verschickt werden).
+- `wishesOpen: false` in `config.js`: Bis du das umstellst, sieht jede Person den leeren Wunschzettel, egal was schon in `data.json` steht. Es wird dann auch nichts entschlüsselt.
 
 ## Barrierefreiheit und Bewegung
 
@@ -212,7 +216,8 @@ und nach `public/models/wichteln.glb` speichern. Die Objekt- und Materialnamen (
 - Kein Build-Schritt. ES-Module direkt im Browser.
 - Die Startseite braucht kein WebGL: Die Geschenke sind gerenderte Bilder. Three.js (r187, reduziert, mit GLTF-Loader und Meshopt) und das Modell (≈ 0,8 MB) laden erst, wenn jemand einen Anhänger öffnet. Während das Passwort getippt wird, baut die Seite die 3D-Szene schon fertig auf (Shader, Texturen), damit in der Animation nichts mehr ruckelt.
 - Der Flug ins Bild ist ein Zoom auf das gerenderte Bild; die 3D-Kamera folgt mit einem passenden Bildausschnitt (`setViewOffset`), so liegen Bild und 3D in jedem Frame exakt aufeinander. Die übrigen Geschenke stehen unsichtbar (nur Tiefe) in der Szene und verdecken das eigene, wo sie im Bild davor stehen.
-- Die 3D-Szene startet mit höchstens 1,25-facher Pixeldichte und senkt sie selbst, wenn Bilder zu langsam kommen. Sie pausiert, solange der Wunschzettel gelesen wird (das letzte Bild bleibt stehen). Der Schnee fällt weiter, es ist ja derselbe Raum.
+- Flüssig auch auf schwächeren Geräten: Während des Flugs bewegt der Browser nur fertig gezeichnete Ebenen (Bild, Anhänger, Wunschzettel, Licht), nichts wird pro Bild neu gemalt. Die Unschärfe des Raums ist ein fester, leichter Weichzeichner, der mit dem Zoom von selbst wächst; die beleuchtete Wachsoberfläche des Siegels wird einmal als Bild berechnet; der Wunschzettel steigt durch ein „Fenster“ aus dem Karton statt mit einem pro Bild neu berechneten Zuschnitt. Als unsichtbare Verdecker zählen nur die Geschenke, die im Bild wirklich vor dem eigenen stehen.
+- Die 3D-Szene startet mit höchstens 1,5-facher (Handys 1,25-facher) Pixeldichte und senkt sie ab dem ersten Bild selbst, wenn Bilder zu langsam kommen. Sie pausiert, solange der Wunschzettel gelesen wird (das letzte Bild bleibt stehen). Der Schnee fällt weiter, es ist ja derselbe Raum.
 - Schriften: Pinyon Script, Hanken Grotesk, Fraunces (Wunschzettel, Siegel), Caveat, Archivo, alle SIL Open Font License, in `public/fonts/`. Bagel Fat One liegt noch bei, wird aber nicht mehr verwendet.
 
 ### Three.js neu bauen (nur falls nötig)

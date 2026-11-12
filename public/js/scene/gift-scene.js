@@ -41,14 +41,15 @@ const SHEET_W = 1.55;
 /* Timeline in seconds, from the moment the tag has come to rest. */
 const T = {
   nudge: 0,
-  untie: 0.4,
-  bowOff: 0.8,
-  bowLand: 1.5,
-  anticipate: 1.45,
-  pop: 2.0,
-  lidLand: 3.1,
-  rise: 2.2,
-  riseEnd: 4.2,
+  untie: 0.35,
+  untie2: 0.85,
+  bowOff: 1.3,
+  bowLand: 1.95,
+  anticipate: 1.95,
+  pop: 2.45,
+  lidLand: 3.5,
+  rise: 2.65,
+  riseEnd: 4.6,
 };
 
 /** Light rays fanning upward from a narrow base, softly blurred. */
@@ -128,6 +129,9 @@ function buildSparks(count) {
   return { points, geometry, material, pos, size, alpha, vel: new Float32Array(count * 3), life: new Float32Array(count).fill(-1), max: new Float32Array(count) };
 }
 
+/** Smooth start and end. @param {number} u */
+const easeInOutSine = (u) => 0.5 - 0.5 * Math.cos(Math.PI * u);
+
 /** Parametric hop from a to b with an arc, for things that fall and land. */
 function hop(out, a, b, u, height) {
   out.lerpVectors(a, b, u);
@@ -190,6 +194,7 @@ export async function createGiftScene(container, { gift: design, place, others =
   const bow = get('Bow');
   const tails = [get('BowTailL'), get('BowTailR')];
   const loops = [get('BowLoopL'), get('BowLoopR')];
+  const knot = get('BowKnot');
   room.add(gift);
 
   const [sx, sy, sz] = design.scale;
@@ -222,35 +227,79 @@ export async function createGiftScene(container, { gift: design, place, others =
     /* keep the paper from the model */
   }
 
-  // The other gifts, as depth only: in front of yours, they hide it, as in the picture.
   const depthOnly = new MeshBasicMaterial({ colorWrite: false });
   const giftSource = source.getObjectByName('Gift');
-  const camDist = camera.position.distanceTo(room.position);
-  const occluders = others
-    .filter((o) => camera.position.distanceTo(new Vector3(o.x, 0, o.z)) < camDist + 2.5)
-    .map((o) => {
-      const g = giftSource.clone(true);
-      g.traverse((m) => {
-        if (m.isMesh) {
-          m.material = depthOnly;
-          m.renderOrder = -1;
-        }
-      });
-      g.position.set(o.x, 0, o.z);
-      g.rotation.y = o.yaw;
-      g.scale.fromArray(o.scale);
-      scene.add(g);
-      return g;
-    });
 
   // Where things go, worked out in the room's frame.
   const camLocal = room.worldToLocal(camera.position.clone());
   const toCam = new Vector3(camLocal.x, 0, camLocal.z).normalize();
-  const othersLocal = others.map((o) => new Vector3((o.x - place.x) / U, 0, (o.z - place.z) / U));
-  const clearance = (p) => Math.min(Infinity, ...othersLocal.map((q) => q.distanceTo(p)));
   const around = (deg, radius) => toCam.clone().applyAxisAngle(new Vector3(0, 1, 0), (deg * Math.PI) / 180).multiplyScalar(radius);
-  /** The free spot among the candidates that keeps most distance to the other gifts. */
-  const pick = (cands) => cands.map((c) => ({ c, d: clearance(c) })).sort((a, b) => (b.d > 2.4) - (a.d > 2.4) || b.d - a.d)[0].c;
+  // Footprints on the floor, as circles (centre, radius) in gift units: nothing may land inside another.
+  const HALF_DIAG = (W / 2) * Math.SQRT2;
+  const obstacles = [{ c: new Vector3(), r: HALF_DIAG * Math.max(sx, sz) }].concat(
+    others.map((o) => ({ c: new Vector3((o.x - place.x) / U, 0, (o.z - place.z) / U), r: (HALF_DIAG * Math.max(o.scale[0], o.scale[2])) / U }))
+  );
+  // In the picture, a spot must not lie behind one of the gifts standing in front of it:
+  // something lying there would seem to sit on that gift.
+  const camRight = new Vector3().setFromMatrixColumn(base.matrixWorld, 0);
+  const proj = (w) => {
+    const p = w.clone().project(base);
+    return [(p.x + 1) / 2, (1 - p.y) / 2];
+  };
+  const rect = (pts) => {
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
+  const frontGifts = others.map((o) => {
+    const hw = (W / 2) * Math.max(o.scale[0], o.scale[2]) * 1.1;
+    const pts = [-1, 1].flatMap((x) => [-1, 1].flatMap((z) => [0, (H + 0.75) * o.scale[1]].map((y) => proj(new Vector3(o.x + x * hw, y, o.z + z * hw)))));
+    const r = rect(pts);
+    // A little room above it too: something lying just behind would seem to sit on it.
+    r[1] -= (r[3] - r[1]) * 0.35;
+    return { d: base.position.distanceTo(new Vector3(o.x, 0, o.z)) - hw * 0.9, r };
+  });
+  /** Whether something of radius r and height h at local point p would be hidden behind another gift. */
+  /** How much of something of radius r and height h at local point p hides behind gifts in front (0..1). */
+  const coverAt = (p, r, h) => {
+    const w = room.localToWorld(p.clone());
+    const d = base.position.distanceTo(w);
+    const box = rect([proj(w.clone().addScaledVector(camRight, r * U)), proj(w.clone().addScaledVector(camRight, -r * U)), proj(w.clone().setY(h * U))]);
+    const area = (box[2] - box[0]) * (box[3] - box[1]) || 1e-6;
+    let cover = 0;
+    for (const g of frontGifts) {
+      if (g.d > d - 0.15) continue;
+      const ix = Math.min(box[2], g.r[2]) - Math.max(box[0], g.r[0]);
+      const iy = Math.min(box[3], g.r[3]) - Math.max(box[1], g.r[1]);
+      if (ix > 0 && iy > 0) cover = Math.max(cover, (ix * iy) / area);
+    }
+    return Math.min(1, cover);
+  };
+  const hiddenAt = (p, r, h) => coverAt(p, r, h) > 0.08;
+
+  /**
+   * The nearest free spot for something of radius r: on a ring around the gift, not behind it,
+   * clear of every footprint so far (with a little air), preferring the given angles.
+   * @param {number} r
+   * @param {(deg:number)=>number} prefer extra cost by angle (0 = ideal)
+   */
+  const freeSpot = (r, prefer, h = 0.3, shift = 0) => {
+    let best = null;
+    for (let deg = -125; deg <= 125; deg += 5) {
+      for (let k = 0; k < 22; k++) {
+        const radius = obstacles[0].r + r + 0.14 + k * 0.1;
+        const p = around(deg, radius);
+        const q = p.clone().addScaledVector(toCam, shift);
+        if (!obstacles.every((o) => o.c.distanceTo(q) >= o.r + r + 0.1)) continue;
+        // Hidden spots are allowed only if nothing better exists: being in view weighs most.
+        const cover = coverAt(q, r, h);
+        const cost = k * 0.1 + prefer(deg) + (cover > 0.08 ? 3 + cover * 6 : 0);
+        if (!best || cost < best.cost) best = { p, cost };
+        if (cover <= 0.08) break;
+      }
+    }
+    return best?.p ?? around(0, obstacles[0].r + r + 2.4);
+  };
 
   // The box face that looks at you: the tag leans there, on the half away from the lid.
   const faces = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([x, z]) => {
@@ -260,13 +309,76 @@ export async function createGiftScene(container, { gift: design, place, others =
   const face = faces.sort((a, b) => b.score - a.score)[0];
   const front = face.n;
   const along = new Vector3(front.z, 0, -front.x);
-  const lidSide = along.dot(toCam.clone().cross(new Vector3(0, 1, 0))) >= 0 ? -1 : 1;
-  const lidTo = pick([around(78 * lidSide, 2.0), around(118 * lidSide, 2.1), around(50 * lidSide, 2.2), around(-78 * lidSide, 2.0)]);
+  // First the tag: it leans on the half of the front face that is better in view.
+  const degOf = (p) => (Math.atan2(toCam.clone().cross(p).y, p.dot(toCam)) * 180) / Math.PI;
+  const tagFoot = (side) => front.clone().multiplyScalar(face.half + 0.32).addScaledVector(along, side * 0.3);
+  const tagSide = hiddenAt(tagFoot(1), 0.4, 0.8) && !hiddenAt(tagFoot(-1), 0.4, 0.8) ? -1 : 1;
+  obstacles.push({ c: tagFoot(tagSide), r: 0.48 });
+  const tagDeg = degOf(tagFoot(tagSide));
+  // Then the loose ribbon of the untied bow: in front of the gift, near, on the other half from the tag.
+  // It lands with its ends towards you; its footprint reaches that way (ends about 1 unit long).
+  const RIBBON_R = 0.6 * Math.max(sx, sz);
+  const RIBBON_SHIFT = 0.45 * Math.max(sx, sz);
+  const bowTo = freeSpot(RIBBON_R, (deg) => (Math.sign(deg) === Math.sign(tagDeg) ? 0.6 : 0) + Math.abs(Math.abs(deg) - 25) * 0.012 + (Math.abs(deg) > 70 ? 1 : 0), 0.12, RIBBON_SHIFT);
+  obstacles.push({ c: bowTo.clone().addScaledVector(toCam, RIBBON_SHIFT), r: RIBBON_R });
+  bowTo.y = 0.03;
+  const ribbonYaw = Math.atan2(toCam.x, toCam.z);
+  // Last the lid: beside the box (seen from you), never behind it, clear of everything above.
+  const LID_R = (1.72 / 2) * Math.SQRT2 * Math.max(sx, sz);
+  const ribbonDeg = degOf(bowTo);
+  const lidTo = freeSpot(LID_R, (deg) => Math.abs(Math.abs(deg) - 70) * 0.012 + (Math.sign(deg) === Math.sign(ribbonDeg) ? 0.3 : 0), 0.4 * sy);
+  obstacles.push({ c: lidTo.clone(), r: LID_R });
   lidTo.y = 0.16 * sy;
-  const bowTo = pick([around(-58 * lidSide, 1.55), around(-95 * lidSide, 1.5), around(-35 * lidSide, 1.7)]);
-  bowTo.y = 0.04;
-  // The tag sits on the side of the front face away from where the lid lands.
-  const tagSide = Math.sign(along.dot(lidTo)) || 1;
+
+  // The other gifts, as depth only: where they stand in front of yours in the picture, they hide it.
+  // Only those that overlap the part of the picture where something happens, and only their solid
+  // parts (box, lid, bow); the flat ribbons lie on the box anyway.
+  const occluders = (() => {
+    const box2d = (pts) => {
+      const xs = pts.map((p) => p[0]);
+      const ys = pts.map((p) => p[1]);
+      return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    };
+    const project = (w) => {
+      const p = w.clone().project(base);
+      return [(p.x + 1) / 2, (1 - p.y) / 2];
+    };
+    const toWorld = (l) => room.localToWorld(l.clone());
+    const action = box2d(
+      [
+        ...[-1, 1].flatMap((x) => [-1, 1].flatMap((z) => [0, H * sy + 1.6].map((y) => new Vector3((x * W * sx) / 2 + x * 0.3, y, (z * W * sz) / 2 + z * 0.3)))),
+        lidTo.clone().add(new Vector3(1, 0.4, 1)), lidTo.clone().add(new Vector3(-1, 0.4, -1)),
+        bowTo.clone().add(new Vector3(0.7, 0.6, 0.7)), bowTo.clone().add(new Vector3(-0.7, 0.6, -0.7)),
+        front.clone().multiplyScalar(face.half + 1.2),
+      ].map((l) => project(toWorld(l)))
+    );
+    const ours = camera.position.distanceTo(room.position);
+    const keep = /^(Body|LidShell|BowLoop|BowKnot|BowTail)/;
+    return others
+      .filter((o) => {
+        const centre = new Vector3(o.x, 0, o.z);
+        if (camera.position.distanceTo(centre) > ours + 1.5) return false;
+        const hw = 0.95 * Math.max(o.scale[0], o.scale[2]);
+        const b = box2d([-1, 1].flatMap((x) => [-1, 1].flatMap((z) => [0, (H + 0.9) * o.scale[1]].map((y) => project(new Vector3(o.x + x * hw, y, o.z + z * hw))))));
+        return b[0] < action[2] && b[2] > action[0] && b[1] < action[3] && b[3] > action[1];
+      })
+      .map((o) => {
+        const g = giftSource.clone(true);
+        const drop = [];
+        g.traverse((m) => {
+          if (!m.isMesh) return;
+          if (!keep.test(m.name)) drop.push(m);
+          m.material = depthOnly;
+          m.renderOrder = -1;
+        });
+        drop.forEach((m) => m.removeFromParent());
+        g.position.set(o.x, 0, o.z);
+        g.rotation.y = o.yaw;
+        g.scale.fromArray(o.scale);
+        scene.add(g);
+        return g;
+      });
+  })();
 
   // Soft contact shadows for everything that rests on the floor.
   const shadowTex = radialTexture(['rgba(18,2,5,0.62)', 'rgba(18,2,5,0.26)', 'rgba(18,2,5,0)']);
@@ -281,7 +393,7 @@ export async function createGiftScene(container, { gift: design, place, others =
   };
   const giftShadow = blob(2.6 * Math.max(sx, sz));
   const lidShadow = blob(2.0 * Math.max(sx, sz));
-  const bowShadow = blob(1.2);
+  const bowShadow = blob(1.0);
   const tagShadow = blob(TAG_W * 1.4, 0.55);
   lidShadow.material.opacity = 0;
   bowShadow.material.opacity = 0;
@@ -437,6 +549,9 @@ export async function createGiftScene(container, { gift: design, place, others =
     if (any) for (const n of ['position', 'aAlpha', 'aSize']) sparks.geometry.attributes[n].needsUpdate = true;
   }
 
+  /** Whether a floor point lies inside a footprint other than the gift's own. */
+  const blocked = (x, z) => obstacles.slice(1).some((o) => Math.hypot(o.c.x - x, o.c.z - z) < o.r * 0.92);
+
   /** @param {number} dt */
   function updateConfetti(dt) {
     const c = confetti;
@@ -463,7 +578,9 @@ export async function createGiftScene(container, { gift: design, place, others =
       const lz = c.pos[p] * sa + c.pos[p + 2] * ca;
       const inside = Math.abs(lx) < hx + 0.05 && Math.abs(lz) < hz + 0.05;
       if (inside && c.pos[p + 1] < H * sy && c.vel[p + 1] < 0) c.landed[i] = 2;
-      if (!inside && c.pos[p + 1] <= 0.008 && c.vel[p + 1] < 0) {
+      if (!inside && c.pos[p + 1] <= 0.008 && c.vel[p + 1] < 0 && blocked(c.pos[p], c.pos[p + 2])) {
+        c.landed[i] = 2;
+      } else if (!inside && c.pos[p + 1] <= 0.008 && c.vel[p + 1] < 0) {
         c.pos[p + 1] = 0.008;
         c.landed[i] = 1;
         c.rot[p] = -Math.PI / 2;
@@ -523,34 +640,63 @@ export async function createGiftScene(container, { gift: design, place, others =
     if (t >= T.pop) squash *= 1 + 0.06 * Math.exp(-6 * (t - T.pop)) * Math.sin(16 * (t - T.pop));
     gift.scale.set(sx / Math.sqrt(squash), sy * squash, sz / Math.sqrt(squash));
 
-    // Bow: the tails are pulled, the loops go slack, then it slides off and drops.
-    const pull = range(t, T.untie, T.bowOff);
-    if (pull > 0) moment('untie');
+    // Bow: untied like a real one. The right end is pulled out, its loop slips through the knot;
+    // then the left. What is left is a loose, flat ribbon that slides off the lid and lands flat.
+    const a = easeInOutSine(range(t, T.untie, T.untie2 + 0.1));
+    const b = easeInOutSine(range(t, T.untie2, T.bowOff));
+    if (a > 0) moment('untie');
     if (!bowFlight) {
-      tails.forEach((tail) => (tail.scale.z = 1 + 0.3 * easeOutCubic(pull)));
-      loops.forEach((loop) => loop.scale.setScalar(1 - 0.22 * easeOutCubic(pull)));
-      bow.position.y = bowRest.y + 0.05 * Math.sin(pull * Math.PI);
-      bow.rotation.z = 0.12 * easeOutCubic(pull);
+      const [loopL, loopR] = loops;
+      const [tailL, tailR] = tails;
+      // A loop being pulled through: it narrows, shrinks into the knot and leans towards it.
+      const slip = (loop, u, dir) => {
+        loop.visible = u < 0.985;
+        loop.scale.set(1 - 0.9 * u, 1 - 0.95 * u, 1 - 0.55 * u);
+        loop.rotation.set(0, 0, dir * 0.35 * Math.sin(u * Math.PI));
+      };
+      slip(loopR, a, 1);
+      slip(loopL, b, -1);
+      // The ends: the pulled one stretches out and swings a little, the other follows later.
+      tailR.scale.z = 1 + 0.75 * a + 0.2 * b;
+      tailR.rotation.y = -0.22 * Math.sin(a * Math.PI) - 0.12 * a;
+      tailL.scale.z = 1 + 0.5 * b;
+      tailL.rotation.y = 0.18 * Math.sin(b * Math.PI) + 0.08 * b;
+      // The knot loosens and turns as the ribbon runs through it; the bow tugs up with each pull.
+      knot.scale.setScalar(1 - 0.25 * a - 0.2 * b);
+      knot.rotation.y = 0.5 * a - 0.3 * b;
+      bow.position.y = bowRest.y + 0.045 * Math.sin(a * Math.PI) + 0.035 * Math.sin(b * Math.PI);
+      bow.rotation.z = 0.06 * Math.sin(a * Math.PI) - 0.05 * Math.sin(b * Math.PI);
     }
     if (t >= T.bowOff && !bowFlight) {
       room.attach(bow);
-      bowFlight = { from: bow.position.clone(), to: bowTo, rot0: bow.rotation.clone(), spin: rand(0.8, 1.4) };
+      // Turn the shortest way to lie with its ends towards you.
+      const r0 = bow.rotation.y;
+      const turn = Math.atan2(Math.sin(ribbonYaw - r0), Math.cos(ribbonYaw - r0));
+      bowFlight = { from: bow.position.clone(), to: bowTo, rot0: bow.rotation.clone(), spin: turn };
     }
     if (bowFlight) {
+      // It slides off the edge first, then drops, settling flat on the floor.
       const u = range(t, T.bowOff, T.bowLand);
-      hop(bow.position, bowFlight.from, bowFlight.to, easeOutCubic(u) * 0.35 + u * 0.65, 0.45);
+      const e = easeInOutSine(u);
+      // Let go of, the stretched ends shorten again.
+      tails[1].scale.z = 1.95 - 0.6 * e;
+      tails[0].scale.z = 1.5 - 0.3 * e;
+      tails[1].rotation.y *= 0.9;
+      tails[0].rotation.y *= 0.9;
+      hop(bow.position, bowFlight.from, bowFlight.to, e, 0.32);
+      const flat = easeOutCubic(range(u, 0.35, 1));
       bow.rotation.set(
-        bowFlight.rot0.x * (1 - u) + 0.08 * u,
-        bowFlight.rot0.y + bowFlight.spin * easeOutCubic(u),
-        bowFlight.rot0.z * (1 - u) + Math.sin(u * Math.PI) * 0.6 + 0.18 * u
+        bowFlight.rot0.x * (1 - flat) + Math.sin(u * Math.PI) * 0.35,
+        bowFlight.rot0.y + bowFlight.spin * e,
+        bowFlight.rot0.z * (1 - flat) + Math.sin(u * Math.PI) * 0.25
       );
       if (u >= 1) {
         moment('bow-land');
         const s = t - T.bowLand;
-        bow.position.y = bowFlight.to.y + Math.abs(Math.sin(s * 14)) * 0.05 * Math.exp(-7 * s);
+        bow.position.y = bowFlight.to.y + Math.abs(Math.sin(s * 16)) * 0.025 * Math.exp(-9 * s);
       }
       bowShadow.position.set(bow.position.x, 0.004, bow.position.z);
-      bowShadow.material.opacity = 0.8 * clamp01(1 - bow.position.y / 1.5);
+      bowShadow.material.opacity = 0.7 * clamp01(1 - bow.position.y / 1.5);
     }
 
     // Lid: trembles, pops, tumbles once and lands beside the box.
@@ -602,8 +748,8 @@ export async function createGiftScene(container, { gift: design, place, others =
     if (pixelRatio <= floorRatio) return;
     frames++;
     if (dt > 1 / 45) slow++;
-    if (frames < 40) return;
-    if (slow > 12) {
+    if (frames < 24) return;
+    if (slow > 8) {
       pixelRatio = Math.max(floorRatio, pixelRatio - 0.25);
       renderer.setPixelRatio(pixelRatio);
       resize();
@@ -646,7 +792,12 @@ export async function createGiftScene(container, { gift: design, place, others =
     return [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([x, y]) => screen(c.clone().addScaledVector(right, (x * w) / 2).addScaledVector(upv, (y * h) / 2)));
   }
 
+  let lastDraw = 0;
   function render() {
+    const now = performance.now();
+    const gap = now - lastDraw;
+    lastDraw = now;
+    if (gap < 250) adapt(gap / 1000);
     renderer.render(scene, camera);
     onFrame();
   }
@@ -662,7 +813,6 @@ export async function createGiftScene(container, { gift: design, place, others =
     update(t, dt);
     updateSparks(dt);
     updateConfetti(dt);
-    if (rawDt < 0.25 && t > 1.2) adapt(rawDt);
     render();
   }
 
@@ -728,7 +878,8 @@ export async function createGiftScene(container, { gift: design, place, others =
       const top = new Vector3(0, rim + 0.28 + sh + 0.15, 0).addScaledVector(toCam, 0.35);
       const pts = [new Vector3(0, 0, 0), top, top.clone().addScaledVector(along, SHEET_W / 2 + 0.1), top.clone().addScaledVector(along, -SHEET_W / 2 - 0.1)];
       // The lid and the bow may lie at the edge of the picture; the list and the gift come first.
-      for (const p of [lidTo, bowTo]) pts.push(p.clone().multiplyScalar(0.7));
+      const outward = (p, r) => p.clone().setY(0).addScaledVector(p.clone().setY(0).normalize(), r);
+      pts.push(outward(lidTo, LID_R * 0.75), outward(bowTo, RIBBON_R), bowTo.clone().addScaledVector(toCam, RIBBON_SHIFT + RIBBON_R));
       pts.push(tag.centre.clone().addScaledVector(up, -tag.h / 2 - 0.3).addScaledVector(front, 0.2));
       return pts.map(imagePoint);
     },
@@ -768,6 +919,22 @@ export async function createGiftScene(container, { gift: design, place, others =
      */
     sheetState() {
       return { visible: sheet.visible, corners: planeCorners(sheet.centre, sheet.right, sheet.up, SHEET_W, SHEET_W * sheet.aspect), clip: sheet.clip, glow: sheet.glow };
+    },
+
+    /**
+     * Screen corners of a rectangle on the wish list's plane, in fractions of the card
+     * (0,0 = top left, 1,1 = bottom right; values outside reach beyond the card).
+     */
+    sheetRect(u0, v0, u1, v1) {
+      room.updateMatrixWorld();
+      const sh = SHEET_W * sheet.aspect;
+      const at = (u, v) => screen(sheet.centre.clone().addScaledVector(sheet.right, (u - 0.5) * SHEET_W).addScaledVector(sheet.up, (0.5 - v) * sh));
+      return [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
+    },
+
+    /** Whether the scene draws by itself right now. */
+    get running() {
+      return playing && !paused && !disposed && !still;
     },
 
     /** Start the choreography. */

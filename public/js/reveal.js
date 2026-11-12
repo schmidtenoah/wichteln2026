@@ -18,6 +18,8 @@ import { createWishlist, genitive } from './wishlist.js';
 import { quadTransform, rectCorners, mixCorners } from './quad.js';
 
 const ZOOM_MS = 1700;
+/** Room around the card inside its window, for its shadow (px). */
+const M = 44;
 const OPEN_MS = 680;
 
 let scenePromise = null;
@@ -74,7 +76,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
   let plate = null;
   let resting = null;
   /** The wish list: wrapper (what gets transformed), the card inside, its size when read. */
-  const sheet = { wrap: null, card: null, ratio: 1.36, w: 0, h: 0 };
+  const sheet = { wrap: null, inner: null, glow: null, card: null, ratio: 1.36, w: 0, h: 0 };
   /** @type {{index:number, promise:Promise<object|null>}|null} */
   let prepared = null;
 
@@ -99,9 +101,6 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
   function applyZoom(z) {
     zoom = z;
     sceneBox.style.transform = `translate(${z.tx}px, ${z.ty}px) scale(${z.k})`;
-    // Depth of field: the room goes soft as you come close; your gift stays sharp.
-    const blur = clamp01((z.k - 1) / 2.5) * 3.2;
-    sceneBox.style.filter = blur > 0.05 ? `blur(${(blur / z.k).toFixed(3)}px) saturate(${1 - 0.12 * clamp01((z.k - 1) / 3)})` : '';
     if (plate) plate.style.opacity = String(z.fade);
     const tagText = sceneBox.querySelectorAll('.gift__tag')[giftId];
     if (tagText) tagText.style.opacity = String(1 - z.fade);
@@ -109,7 +108,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     section.style.setProperty('--near', String(clamp01((z.k - 1) / 2)));
     if (three) {
       three.setView(viewRect(z));
-      if (!ready || reading) three.render();
+      if (!three.running) three.render();
     }
   }
 
@@ -188,12 +187,20 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     if (resting) resting.el.style.transform = quadTransform(resting.w, resting.h, three.tagCorners());
     if (!sheet.wrap || reading || busy) return;
     const st = three.sheetState();
-    sheet.wrap.hidden = !st.visible;
-    if (!st.visible) return;
-    sheet.wrap.style.transform = quadTransform(sheet.w, sheet.h, st.corners);
-    sheet.wrap.style.clipPath = st.clip > 0.001 ? `inset(0 0 ${(st.clip * 100).toFixed(2)}% 0)` : '';
-    sheet.card.style.setProperty('--glow', st.glow.toFixed(3));
+    const visible = st.visible && st.clip < 0.995;
+    sheet.wrap.hidden = !visible;
+    if (!visible) return;
+    const { w, h } = sheet;
+    const yb = Math.min(h + M, h * (1 - st.clip));
+    const k = (h + 2 * M) / (yb + M);
+    sheet.wrap.style.transform = quadTransform(w + 2 * M, h + 2 * M, three.sheetRect(-M / w, -M / h, 1 + M / w, yb / h));
+    sheet.inner.style.transform = `translate(${M}px, ${(M * k).toFixed(3)}px) scale(1, ${k.toFixed(5)})`;
+    sheet.glow.style.opacity = st.glow.toFixed(3);
   }
+
+  /** The card's window on screen, as corners, when nothing of it is hidden. */
+  const fullWindow = () => three.sheetRect(-M / sheet.w, -M / sheet.h, 1 + M / sheet.w, 1 + M / sheet.h);
+  const readingWindow = (r) => rectCorners(r.x - M, r.y - M, r.w + 2 * M, r.h + 2 * M);
 
   /** Size of the list when it is read: as large as fits, never wider than a sheet of paper in your hands. */
   function readingSize(ratio) {
@@ -228,9 +235,17 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
       sheet.wrap.hidden = true;
       sheetLayer.append(sheet.wrap);
     }
-    sheet.wrap.style.width = `${w}px`;
-    sheet.wrap.style.height = `${h}px`;
-    sheet.wrap.replaceChildren(el);
+    sheet.wrap.style.width = `${w + 2 * M}px`;
+    sheet.wrap.style.height = `${h + 2 * M}px`;
+    sheet.inner = document.createElement('div');
+    sheet.inner.className = 'wlinner';
+    sheet.inner.style.width = `${w}px`;
+    sheet.inner.style.height = `${h}px`;
+    sheet.inner.style.transform = `translate(${M}px, ${M}px)`;
+    sheet.glow = document.createElement('div');
+    sheet.glow.className = 'wlglow';
+    sheet.inner.append(el, sheet.glow);
+    sheet.wrap.replaceChildren(sheet.inner);
     sheet.card = el;
     setSheetInteractive(reading);
     three?.setSheetAspect(ratio);
@@ -261,8 +276,9 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
 
   function placeReading() {
     const r = readingRect();
-    sheet.wrap.style.transform = `translate(${r.x}px, ${r.y}px)`;
-    sheet.wrap.style.clipPath = '';
+    sheet.wrap.style.transform = `translate(${r.x - M}px, ${r.y - M}px)`;
+    sheet.inner.style.transform = `translate(${M}px, ${M}px)`;
+    sheet.glow.style.opacity = '0';
     sheetLayer.style.setProperty('--sheet-bottom', `${r.y + r.h + 32}px`);
   }
 
@@ -275,7 +291,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
    */
   function flyCard(from, to, ms, each) {
     if (prefersReducedMotion()) {
-      sheet.wrap.style.transform = quadTransform(sheet.w, sheet.h, to());
+      sheet.wrap.style.transform = quadTransform(sheet.w + 2 * M, sheet.h + 2 * M, to());
       each?.(1);
       return Promise.resolve();
     }
@@ -287,7 +303,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
         const e = easeInOut(u);
         // A little lift on the way, as if picked up.
         const q = mixCorners(a, to(), e).map(([x, y]) => [x, y - Math.sin(Math.PI * e) * 26]);
-        sheet.wrap.style.transform = quadTransform(sheet.w, sheet.h, q);
+        sheet.wrap.style.transform = quadTransform(sheet.w + 2 * M, sheet.h + 2 * M, q);
         each?.(e);
         if (u < 1) requestAnimationFrame(step);
         else resolve();
@@ -306,11 +322,11 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     section.classList.add('is-reading');
     sheetLayer.scrollTop = 0;
     const glow0 = st?.glow ?? 0;
-    const clip0 = st?.clip ?? 0;
     sheet.wrap.hidden = false;
-    await flyCard(() => st?.corners ?? rectCorners(r.x, r.y + 40, r.w, r.h), () => rectCorners(r.x, r.y, r.w, r.h), OPEN_MS, (e) => {
-      sheet.card.style.setProperty('--glow', (glow0 * (1 - e)).toFixed(3));
-      sheet.wrap.style.clipPath = clip0 > 0.001 ? `inset(0 0 ${(clip0 * (1 - e) * 100).toFixed(2)}% 0)` : '';
+    sheet.inner.style.transform = `translate(${M}px, ${M}px)`;
+    const start = three ? fullWindow() : readingWindow({ ...r, y: r.y + 40 });
+    await flyCard(() => start, () => readingWindow(r), OPEN_MS, (e) => {
+      sheet.glow.style.opacity = (glow0 * (1 - e)).toFixed(3);
     });
     three?.pause();
     reading = true;
@@ -319,7 +335,9 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     setSheetInteractive(true);
     switchBtn.hidden = !data.supported || !data.own;
     paintSwitch();
-    sheet.card.querySelector('a') ? sheet.card.querySelector('a.wl__cap')?.focus({ preventScroll: true }) : back.focus({ preventScroll: true });
+    // Focus the card itself (screen readers announce it); its links follow in tab order.
+    sheet.card.tabIndex = -1;
+    sheet.card.focus({ preventScroll: true });
   }
 
   /** Put it back above the gift. */
@@ -336,11 +354,11 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
       buildSheet();
     }
     const r = readingRect();
-    const from = rectCorners(r.x, r.y - sheetLayer.scrollTop, r.w, r.h);
+    const from = readingWindow({ ...r, y: r.y - sheetLayer.scrollTop });
     sheetLayer.scrollTop = 0;
     if (three) {
       three.resume();
-      await flyCard(() => from, () => three.sheetState().corners, OPEN_MS);
+      await flyCard(() => from, fullWindow, OPEN_MS);
       busy = false;
       syncProps();
       sheet.wrap.focus({ preventScroll: true });
@@ -393,7 +411,9 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
    * @param {number} index
    */
   function prepare(index) {
-    if (open || !hasWebGL()) return;
+    if (open) return;
+    document.documentElement.classList.add('is-preparing');
+    if (!hasWebGL()) return;
     if (prepared?.index === index) return;
     discardPrepared();
     const loader = prefetchScene();
@@ -467,12 +487,11 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     stage.replaceChildren();
     props.replaceChildren();
     sheetLayer.replaceChildren();
-    sheet.wrap = sheet.card = null;
+    sheet.wrap = sheet.inner = sheet.glow = sheet.card = null;
     resting = null;
     plate?.remove();
     plate = null;
     sceneBox.style.removeProperty('transform');
-    sceneBox.style.removeProperty('filter');
     sceneBox.querySelectorAll('.gift__tag').forEach((t) => t.style.removeProperty('opacity'));
     section.classList.remove('is-active', 'is-leaving', 'is-flat');
     section.style.removeProperty('--fade');
@@ -483,7 +502,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
     mode = 'gift';
     landing.inert = false;
     landing.removeAttribute('aria-hidden');
-    document.documentElement.classList.remove('is-revealing');
+    document.documentElement.classList.remove('is-revealing', 'is-preparing');
     onClosed(giver);
   }
   let leaving = false;
@@ -509,8 +528,10 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
       const { w, h } = readingSize(sheet.ratio);
       sheet.w = w;
       sheet.h = h;
-      sheet.wrap.style.width = `${w}px`;
-      sheet.wrap.style.height = `${h}px`;
+      sheet.wrap.style.width = `${w + 2 * M}px`;
+      sheet.wrap.style.height = `${h + 2 * M}px`;
+      sheet.inner.style.width = `${w}px`;
+      sheet.inner.style.height = `${h}px`;
       if (resting) syncProps();
     }
     reframe();
@@ -523,6 +544,7 @@ export function initReveal({ section, landing, onClosed, onOpened = () => {} }) 
       if (!open) {
         discardPrepared();
         stage.replaceChildren();
+        document.documentElement.classList.remove('is-preparing');
       }
     },
 

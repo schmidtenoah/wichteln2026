@@ -1,27 +1,25 @@
 /* ==========================================================================
    The wish list card (js/wishlist.js). Used on the site and in admin.html.
    Everything is sized in container units: 1cqw = 1/100 of the card width.
+   Small print never goes below a legible pixel size on phones.
    ========================================================================== */
 
 @font-face { font-family: 'Fraunces'; src: url('../fonts/fraunces-latin-var.woff2') format('woff2'); font-weight: 300 900; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Fraunces'; src: url('../fonts/fraunces-italic-latin-var.woff2') format('woff2'); font-weight: 300 900; font-style: italic; font-display: swap; }
-@font-face { font-family: 'Archivo'; src: url('../fonts/archivo-latin-var.woff2') format('woff2'); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
 
 .wl {
-  --wl-paper: #f8f4ec;
+  --wl-paper: #f7f2e9;
   --wl-ink: #2a1d18;
   --wl-red: #8c1a20;
-  --wl-pencil: #b7a284;
-  --wl-quiet: #8a7a6d;
+  --wl-gold: #b38c46;
+  --wl-quiet: #6f5f52;
   position: relative;
   container-type: inline-size;
   width: 100%;
-  aspect-ratio: 1 / var(--ratio, 1.36);
+  aspect-ratio: 1 / var(--ratio, 1.42);
   overflow: hidden;
-  border-radius: 0.7cqw;
-  background:
-    radial-gradient(130% 90% at 30% 0%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 55%),
-    linear-gradient(178deg, var(--wl-paper), #efe8dc);
+  border-radius: 0.6cqw;
+  background: linear-gradient(178deg, var(--wl-paper), #efe7da);
   color: var(--wl-ink);
   font-family: 'Fraunces', Georgia, serif;
   font-optical-sizing: auto;
@@ -38,36 +36,48 @@
   background:
     url('../img/tex/fasern.png') 0 0 / 22cqw 22cqw,
     radial-gradient(140% 110% at 50% 40%, rgba(80, 50, 20, 0) 60%, rgba(80, 50, 20, 0.1));
-  opacity: 0.55;
+  opacity: 0.32;
   mix-blend-mode: multiply;
   pointer-events: none;
 }
-/* Warm light from the open box while the card rises out of it (set by the reveal). */
-.wl::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: radial-gradient(120% 70% at 50% 110%, rgba(255, 214, 140, 0.95), rgba(255, 200, 120, 0.35) 55%, rgba(255, 200, 120, 0) 80%);
-  mix-blend-mode: screen;
-  opacity: var(--glow, 0);
-  pointer-events: none;
-}
 
-.wl__head { position: absolute; inset: 0 0 auto; padding: 4.6cqw 6cqw 0; text-align: center; }
-.wl__meta {
+/* The frame: a thin gold line with cut-in corners. Budget and day sit in its top edge, the editors in its bottom edge. */
+.wl__frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.wl__frame path { fill: none; stroke: var(--wl-gold); stroke-width: 0.22; }
+/* Small caps set into the frame line: the paper behind them breaks the line. */
+.wl__meta, .wl__sign {
+  position: absolute;
+  left: 8cqw;
+  right: 8cqw;
   display: flex;
   justify-content: space-between;
   margin: 0;
-  font-family: 'Archivo', 'Arial Narrow', sans-serif;
-  font-stretch: 82%;
-  font-weight: 700;
-  font-size: 1.75cqw;
-  letter-spacing: 0.16em;
+  font-weight: 600;
+  font-size: max(1.75cqw, 7.5px);
+  line-height: 1;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--wl-quiet);
+  pointer-events: none;
 }
-.wl__title { display: grid; justify-items: center; margin: 3.2cqw 0 0; font-weight: 400; line-height: 0.84; color: var(--wl-red); }
+.wl__meta span, .wl__sign span { padding: 0 1.4cqw; background: var(--wl-paper); }
+.wl__meta { top: 3cqw; translate: 0 -50%; }
+.wl__sign { bottom: 3cqw; translate: 0 50%; }
+.wl__sign span { background: #efe8db; }
+
+.wl__head { position: absolute; inset: 0 0 auto; padding: 22cqw 6cqw 0; text-align: center; }
+/* The bow over the top edge, drawn like an engraving. */
+.wl__bow { position: absolute; left: 30cqw; top: 6cqw; width: 40cqw; height: 15.33cqw; overflow: visible; }
+.wl__bow .o-stem { fill: none; stroke: #4a5f3c; stroke-width: 0.7; stroke-linecap: round; }
+.wl__bow .o-needle { fill: none; stroke: #55704a; stroke-width: 0.55; stroke-linecap: round; }
+.wl__bow .o-needle--light { stroke: #a8955a; }
+.wl__bow .o-berry { fill: #9b1b22; }
+.wl__bow .o-shine { fill: rgba(255, 235, 225, 0.75); }
+.wl__bow .o-ribbon { fill: #a01d25; stroke: #6d0f15; stroke-width: 0.5; stroke-linejoin: round; }
+.wl__bow .o-knot { fill: #8a161d; stroke: #5c0b10; stroke-width: 0.5; }
+.wl__bow .o-fold { fill: none; stroke: rgba(255, 210, 200, 0.55); stroke-width: 0.5; stroke-linecap: round; }
+
+.wl__title { display: grid; justify-items: center; margin: 0; font-weight: 400; line-height: 0.84; color: var(--wl-red); }
 .wl__whose {
   font-weight: 560;
   font-variation-settings: 'SOFT' 0, 'WONK' 0;
@@ -83,11 +93,20 @@
   letter-spacing: -0.03em;
   translate: 5cqw 0;
 }
+
+/* Gold rule with a small star. */
+.wl__rule { display: flex; align-items: center; justify-content: center; gap: 1.6cqw; width: 44cqw; height: 2.4cqw; margin: 0 auto; color: var(--wl-gold); }
+.wl__rule::before, .wl__rule::after { content: ''; flex: 1; height: 0.2cqw; min-height: 1px; background: linear-gradient(90deg, rgba(179, 140, 70, 0), currentColor); }
+.wl__rule::after { background: linear-gradient(90deg, currentColor, rgba(179, 140, 70, 0)); }
+.wl__rule svg { width: 2.4cqw; height: 2.4cqw; fill: currentColor; }
+.wl__rule--top { margin-top: 2.6cqw; }
+.wl__foot { position: absolute; inset: auto 0 0; height: 9cqw; }
+
 .wl__note {
   max-width: 70cqw;
-  margin: 2.2cqw auto 0;
+  margin: 2cqw auto 0;
   font-style: italic;
-  font-size: 2.7cqw;
+  font-size: max(2.7cqw, 11px);
   line-height: 1.25;
   color: var(--wl-ink);
   display: -webkit-box;
@@ -99,7 +118,7 @@
 .wl__field { position: absolute; left: 0; right: 0; }
 .wl__items { margin: 0; padding: 0; list-style: none; }
 .wl__arrows { position: absolute; left: 0; top: 0; width: 100cqw; height: 100%; overflow: visible; pointer-events: none; }
-.wl__arrows path { fill: none; stroke: var(--wl-pencil); stroke-width: 0.34; stroke-linecap: round; stroke-linejoin: round; }
+.wl__arrows path { fill: none; stroke: var(--wl-gold); stroke-width: 0.34; stroke-linecap: round; stroke-linejoin: round; }
 
 .wl__pic {
   position: absolute;
@@ -119,7 +138,7 @@
 }
 .wl__pic--none {
   place-items: center;
-  border: 0.3cqw solid var(--wl-pencil);
+  border: 0.3cqw solid var(--wl-gold);
   border-radius: 50%;
   scale: 0.72;
   font-style: italic;
@@ -144,46 +163,15 @@ a.wl__pic:hover { transform: translateY(-0.6cqw); }
 }
 a.wl__cap { text-decoration-line: underline; text-decoration-color: transparent; text-decoration-thickness: 0.18cqw; text-underline-offset: 0.5cqw; transition: text-decoration-color 0.25s; }
 a.wl__cap:hover, a.wl__cap:focus-visible { text-decoration-color: currentColor; }
+.wl:focus { outline: none; }
 .wl a:focus-visible { outline: 0.3cqw solid var(--wl-red); outline-offset: 0.6cqw; border-radius: 0.6cqw; }
 
 /* Empty: the editors are still waiting for the list. */
-.wl__wait { position: absolute; inset: 0 8cqw auto; text-align: center; }
-.wl__wait-title { margin: 1cqw 0 0; font-style: italic; font-weight: 400; font-size: 6.4cqw; line-height: 1; color: var(--wl-ink); }
-.wl__wait-text { max-width: 62cqw; margin: 2.2cqw auto 0; font-family: 'Archivo', sans-serif; font-weight: 450; font-size: 2.35cqw; line-height: 1.4; color: var(--wl-quiet); }
+.wl__wait { position: absolute; inset: 0 9cqw auto; text-align: center; }
+.wl__wait-title { margin: 1.4cqw 0 0; font-style: italic; font-weight: 420; font-size: 7.2cqw; line-height: 1; color: var(--wl-ink); }
+.wl__wait-text { max-width: 66cqw; margin: 2.6cqw auto 0; text-wrap: balance; font-weight: 380; font-size: max(2.75cqw, 11.5px); line-height: 1.4; color: var(--wl-ink); }
 .wl__ghosts { position: absolute; left: 0; right: 0; bottom: 0; }
 .wl__arrows--ghost { position: absolute; }
-.wl__arrows--ghost path { stroke-dasharray: 0.9 1.1; opacity: 0.8; }
-/* Crop marks: a picture box in the layout, waiting for its picture. */
-.wl__ghost {
-  position: absolute;
-  --m: rgba(140, 26, 32, 0.45);
-  background:
-    linear-gradient(var(--m), var(--m)) 0 0 / 3.2cqw 0.25cqw,
-    linear-gradient(var(--m), var(--m)) 0 0 / 0.25cqw 3.2cqw,
-    linear-gradient(var(--m), var(--m)) 100% 0 / 3.2cqw 0.25cqw,
-    linear-gradient(var(--m), var(--m)) 100% 0 / 0.25cqw 3.2cqw,
-    linear-gradient(var(--m), var(--m)) 0 100% / 3.2cqw 0.25cqw,
-    linear-gradient(var(--m), var(--m)) 0 100% / 0.25cqw 3.2cqw,
-    linear-gradient(var(--m), var(--m)) 100% 100% / 3.2cqw 0.25cqw,
-    linear-gradient(var(--m), var(--m)) 100% 100% / 0.25cqw 3.2cqw,
-    repeating-linear-gradient(135deg, rgba(140, 26, 32, 0.05) 0 0.5cqw, transparent 0.5cqw 2cqw);
-  background-repeat: no-repeat;
-  scale: 0.84;
-}
-.wl__cap--ghost { color: var(--wl-quiet); opacity: 0.85; }
-
-.wl__foot {
-  position: absolute;
-  inset: auto 6cqw 3.6cqw;
-  display: flex;
-  justify-content: space-between;
-  padding-top: 1.6cqw;
-  border-top: 0.18cqw solid rgba(42, 29, 24, 0.18);
-  font-family: 'Archivo', 'Arial Narrow', sans-serif;
-  font-stretch: 82%;
-  font-weight: 700;
-  font-size: 1.6cqw;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--wl-quiet);
-}
+.wl__arrows .wl__ghost { fill: url(#wl-hatch); stroke: #b4636a; stroke-width: 0.26; stroke-dasharray: 0.9 0.8; }
+.wl__arrows .wl__hatch { fill: none; stroke: rgba(140, 26, 32, 0.16); stroke-width: 0.3; }
+.wl__cap--ghost { color: var(--wl-ink); opacity: 0.8; }

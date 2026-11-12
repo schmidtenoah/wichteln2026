@@ -7,6 +7,13 @@ export const SITE = {
   year: 2026,
   /** Shown as "Bescherung" on the landing page and the reveal. */
   date: '25. Dezember',
+  /**
+   * false: everyone sees the empty wish list ("Noch ganz leer."), whatever is already in data.json.
+   * Set to true once the lists are complete (by wishDeadline); nobody needs a new password for that.
+   */
+  wishesOpen: false,
+  /** By when every wish list is on the site (the editors' promise on an empty wish list). */
+  wishDeadline: '1. Dezember',
   /** Spending limit in euros. Shown everywhere and used for the "Merkzettel". */
   budget: 50,
   /** A little over is fine: up to this many euros above the limit counts as "passt". */

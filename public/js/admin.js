@@ -803,8 +803,21 @@ async function onLogin(e) {
   }
 }
 
+/** Only ever shown as the page itself, never framed into another site. */
+function refuseFraming() {
+  if (window.top === window.self) return false;
+  document.documentElement.hidden = true;
+  try {
+    window.top.location.replace(window.location.href);
+  } catch {
+    /* the other site blocks it: the page simply stays empty there */
+  }
+  return true;
+}
+
 /** Entry point. */
 function main() {
+  if (refuseFraming()) return;
   const s = readSettings();
   $('gate-source').textContent = hasGitHub(s) ? `Lädt direkt aus GitHub: ${s.owner}/${s.repo}` : '';
   $('gate-form').addEventListener('submit', onLogin);

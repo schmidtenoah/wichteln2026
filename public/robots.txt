@@ -1,0 +1,3 @@
+# Private Secret-Santa page: no search engines, no archives, no AI crawlers.
+User-agent: *
+Disallow: /

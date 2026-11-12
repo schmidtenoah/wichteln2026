@@ -10,10 +10,34 @@ import { prefersReducedMotion } from './motion.js';
 import { play } from './sound.js';
 import { dressTag } from './tagart.js';
 import { quadTransform } from './quad.js';
-import { buildSeal } from './seal.js';
+import { buildSeal, paintSeal } from './seal.js';
 
 const WRONG = 'Hm, das passt nicht. Schau nochmal in die Nachricht der Wichtel-Redaktion.';
 const EMPTY = 'Da fehlt noch dein Passwort.';
+const SLOW = (s) => `Zu viele Versuche. Bitte ${s} Sekunden warten.`;
+
+/*
+ * A brake for guessing through the form: from the third wrong password in a row, each new
+ * try has to wait a little longer (2, 4, 8 … up to 60 seconds). Kept for this browser tab.
+ * (Someone who copies data.json can still guess offline; see README, "Wie sicher ist das?")
+ */
+const FAILS_KEY = 'wichteln:versuche';
+function readFails() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(FAILS_KEY) || '{}');
+    return { n: Number(v.n) || 0, until: Number(v.until) || 0 };
+  } catch {
+    return { n: 0, until: 0 };
+  }
+}
+function writeFails(v) {
+  try {
+    sessionStorage.setItem(FAILS_KEY, JSON.stringify(v));
+  } catch {
+    /* private mode: the brake lasts for this page only */
+  }
+}
+let fails = readFails();
 
 /**
  * Wait helper.
@@ -139,10 +163,19 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
       input.focus();
       return;
     }
+    const waitFor = Math.ceil((fails.until - Date.now()) / 1000);
+    if (waitFor > 0) {
+      setError(SLOW(waitFor));
+      shake();
+      return;
+    }
     setError('');
     setBusy(true);
     const payload = await openEntry(current, input.value, kdf);
     if (!payload) {
+      fails.n += 1;
+      fails.until = fails.n >= 3 ? Date.now() + Math.min(60, 2 ** (fails.n - 2)) * 1000 : 0;
+      writeFails(fails);
       setBusy(false);
       setError(WRONG);
       play('falsch');
@@ -150,6 +183,8 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
       input.select();
       return;
     }
+    fails = { n: 0, until: 0 };
+    writeFails(fails);
     input.blur();
     dialog.classList.add('is-unlocked');
     stamp.classList.add('is-broken');
@@ -174,6 +209,7 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
       const turn = ([x, y]) => [w / 2 + (x - w / 2) * Math.cos(tilt) - y * Math.sin(tilt), (x - w / 2) * Math.sin(tilt) + y * Math.cos(tilt)];
       const from = [[0, 0], [w, 0], [w, h], [0, h]].map(turn);
       label.style.transformOrigin = '0 0';
+      label.style.willChange = 'transform';
       label.style.transform = quadTransform(w, h, from);
       if (!prefersReducedMotion()) {
         await new Promise((resolve) => {
@@ -204,6 +240,7 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
     label.style.removeProperty('transform');
     label.style.removeProperty('transform-origin');
     label.style.removeProperty('rotate');
+    label.style.removeProperty('will-change');
     if (twine) twine.hidden = false;
     dialog.classList.remove('is-unlocked', 'is-lifting');
     setBusy(false);
@@ -232,6 +269,7 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
     copy.setAttribute('aria-hidden', 'true');
     copy.inert = true;
     copy.style.removeProperty('transform');
+    copy.style.removeProperty('will-change');
     copy.style.width = `${w}px`;
     copy.style.height = `${h}px`;
     return copy;
@@ -263,6 +301,7 @@ export function initTag({ dialog, onUnlock, onOpen = () => {}, onCancel = () => 
       // Paper and ink as on the gift; the seal sits where the doodle used to be.
       label.querySelector('.doodle')?.remove();
       dressTag(label, person.name, i);
+      paintSeal(stamp.querySelector('.seal__svg'), getComputedStyle(label).getPropertyValue('--wax').trim());
       resetSeal();
       toEl.textContent = '';
       toEl.classList.remove('is-writing');

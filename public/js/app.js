@@ -48,6 +48,8 @@ function initSoundToggles() {
 async function readWishes(draw, giver, payload) {
   const supported = draw.v >= 2 && Boolean(payload.k);
   if (!supported) return { wishes: null, own: null, supported };
+  // Until the lists are complete, everyone gets the empty wish list; nothing is even decrypted.
+  if (SITE.wishesOpen !== true) return { wishes: { note: '', items: [] }, own: { note: '', items: [] }, supported };
   const [wishes, own] = await Promise.all([
     openWishes(payload.to, payload.k, draw.wishes?.[payload.to]),
     openWishes(giver, payload.own, draw.wishes?.[giver]),
@@ -55,8 +57,21 @@ async function readWishes(draw, giver, payload) {
   return { wishes, own, supported };
 }
 
+/** Only ever shown as the page itself, never framed into another site. */
+function refuseFraming() {
+  if (window.top === window.self) return false;
+  document.documentElement.hidden = true;
+  try {
+    window.top.location.replace(window.location.href);
+  } catch {
+    /* the other site blocks it: the page simply stays empty there */
+  }
+  return true;
+}
+
 /** Entry point. */
 async function main() {
+  if (refuseFraming()) return;
   applySiteConfig();
   initSoundToggles();
 

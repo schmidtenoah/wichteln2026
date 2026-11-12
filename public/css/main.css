@@ -221,8 +221,6 @@ button { cursor: pointer; }
 /* The wax seal: stamp and button in one. Closes the tag at its bottom edge, half over the paper.
    Drawn by js/seal.js: wax lit from the top left, a pressed well, raised letters. */
 .seal {
-  --wax-hi: color-mix(in srgb, var(--wax) 62%, #ff9c86);
-  --wax-lo: color-mix(in srgb, var(--wax) 58%, #1a0003);
   position: relative;
   justify-self: center;
   width: 112px;
@@ -245,15 +243,14 @@ button { cursor: pointer; }
 @keyframes seal-call { 0%, 70%, 100% { scale: 1; } 80% { scale: 1.05; } 90% { scale: 0.985; } }
 .seal[aria-busy='true'] { cursor: progress; animation: seal-wobble 0.6s ease-in-out infinite; }
 .seal__svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.seal__s1 { stop-color: var(--wax-hi); }
-.seal__s2 { stop-color: var(--wax); }
-.seal__s3 { stop-color: var(--wax-lo); }
 .seal__w1 { stop-color: color-mix(in srgb, var(--wax) 88%, #ff9c86); }
 .seal__w2 { stop-color: color-mix(in srgb, var(--wax) 80%, #1a0003); }
 .seal__bevel-dark { fill: none; stroke: rgba(25, 0, 3, 0.55); stroke-width: 1.6; stroke-linecap: round; }
 .seal__bevel-light { fill: none; stroke: rgba(255, 205, 190, 0.5); stroke-width: 1.3; stroke-linecap: round; }
 .seal__ring { fill: none; stroke: color-mix(in srgb, var(--wax) 55%, #000); stroke-width: 0.8; opacity: 0.8; }
 .seal__raised { fill: color-mix(in srgb, var(--wax) 92%, #ffb3a2); }
+.seal__raised--shadow { fill: #1c0204; opacity: 0.55; }
+.seal__raised--light { fill: #ffd2c4; opacity: 0.5; }
 .seal__word { font-family: var(--serif); font-weight: 700; font-size: 7.4px; letter-spacing: 1.15px; }
 .seal__year { font-family: var(--serif); font-weight: 600; font-size: 4.6px; letter-spacing: 1px; opacity: 0.85; }
 .seal__mono { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 21px; }
@@ -272,6 +269,19 @@ button { cursor: pointer; }
 .handtag__error:empty { display: none; }
 .tagdlg.is-unlocked .handtag__label, .tagdlg.is-unlocked .handtag__input { opacity: 0; transition: opacity 0.35s; }
 
+/* Low screens (phones held sideways): a more compact tag, so the seal is in view without scrolling. */
+@media (max-height: 560px) {
+  .handtag--big { width: min(300px, 100%); margin-top: 8px; padding: 44px 22px 16px; }
+  .handtag--big .handtag__hole { top: 14px; width: 18px; }
+  .handtag__twine { bottom: calc(100% - 23px); }
+  .handtag--big .handtag__name { font-size: 2.2rem; }
+  .handtag__fuer { min-height: 2.9rem; margin-top: 2px; }
+  .handtag__fuer-name { font-size: 2rem; }
+  .handtag__label { margin-top: 10px; font-size: 1.05rem; }
+  .handtag__input { font-size: 1.5rem; }
+  .seal { width: 84px; height: 84px; margin: 8px 0 -6px; }
+}
+
 /* --------------------------------------------------------------------------
    Reveal: the page flies into the picture; the 3D gift stands in for the
    rendered one (a clean plate hides the rendered one), the tag and the wish
@@ -279,7 +289,11 @@ button { cursor: pointer; }
    -------------------------------------------------------------------------- */
 
 html.is-revealing body { overflow: hidden; }
-html.is-revealing .scene { will-change: transform, filter; transform-origin: 0 0; }
+html.is-revealing .scene, html.is-preparing .scene { will-change: transform; transform-origin: 0 0; }
+html.is-revealing .scene__plate { will-change: opacity; }
+/* Close up, the room goes soft (depth of field). A fixed blur in the picture's own pixels: it grows with the
+   zoom by itself, and the browser animates it without redrawing anything. */
+html.is-revealing .scene { filter: blur(0.75px); transition: filter 1.4s var(--ease-soft); }
 html.is-revealing .top { opacity: 0; transition: opacity 0.3s; }
 .scene__plate {
   position: absolute;
@@ -311,9 +325,10 @@ html.is-revealing .top { opacity: 0; transition: opacity 0.3s; }
   inset: 0;
   background: radial-gradient(75% 70% at 50% 58%, rgba(14, 2, 6, 0) 40%, rgba(14, 2, 6, 0.55));
   opacity: var(--near, 0);
+  will-change: opacity;
 }
 .reveal__stage, .reveal__scene, .reveal__props, .reveal__sheet { position: absolute; inset: 0; }
-.reveal__stage { opacity: var(--fade, 0); }
+.reveal__stage { opacity: var(--fade, 0); will-change: opacity; }
 .reveal__stage canvas { display: block; width: 100%; height: 100%; }
 .reveal__props { overflow: hidden; }
 .reveal__dim { position: absolute; inset: 0; background: rgba(14, 2, 6, 0.6); opacity: 0; transition: opacity 0.45s var(--ease-soft); }
@@ -324,22 +339,43 @@ html.is-revealing .top { opacity: 0; transition: opacity 0.3s; }
 .reveal.is-reading .reveal__sheet { overflow: hidden auto; overscroll-behavior: contain; pointer-events: auto; }
 /* Room below the card when it is read and longer than the screen. */
 .reveal__sheet::after { content: ''; position: absolute; left: 0; top: 0; width: 1px; height: var(--sheet-bottom, 0); pointer-events: none; }
+/* The card's window: laid onto the card's plane above the rim (overflow hides what is still in the box).
+   Card and light are their own layers, drawn once and only moved. */
 .wlwrap {
   position: absolute;
   left: 0;
   top: 0;
+  overflow: hidden;
   transform-origin: 0 0;
+  pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.wlinner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
   pointer-events: auto;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(0 1px 1px rgba(20, 4, 6, 0.25)) drop-shadow(0 18px 24px rgba(14, 2, 6, 0.35));
 }
+.wlglow {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.7%;
+  background: radial-gradient(120% 70% at 50% 110%, rgba(255, 222, 160, 0.85), rgba(255, 214, 150, 0.32) 55%, rgba(255, 214, 150, 0) 80%);
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
+}
+.reveal.is-reading .wlwrap { overflow: visible; }
 .wlwrap[hidden] { display: none; }
 .wlwrap:focus { outline: none; }
 .wlwrap:focus-visible .wl { outline: 3px solid var(--candle); outline-offset: 6px; }
-.wlwrap.is-hover .wl { --glow: 0.22 !important; }
-.reveal:not(.is-ready) .wlwrap { cursor: default; }
-.reveal.is-reading .wlwrap { cursor: auto; }
+.wlwrap.is-hover .wlglow { opacity: 0.2 !important; }
+.reveal:not(.is-ready) .wlinner { cursor: default; }
+.reveal.is-reading .wlinner { cursor: auto; }
 .reveal__bar { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: max(12px, env(safe-area-inset-top)) var(--pad) 0; pointer-events: none; opacity: 0; transition: opacity 0.5s 0.4s var(--ease-soft); }
 .reveal.is-active .reveal__bar { opacity: 1; }
 .reveal.is-leaving .reveal__bar { opacity: 0; transition-delay: 0s; }
@@ -348,7 +384,7 @@ html.is-revealing .top { opacity: 0; transition: opacity 0.3s; }
 .reveal__switch:hover { background: rgba(23, 4, 10, 0.8); }
 .reveal__switch[hidden] { display: none; }
 /* The tag from the dialog, resting against the gift: the same element, laid onto its plane. */
-.handtag--resting { position: absolute; left: 0; top: 0; margin: 0; rotate: 0deg; transform-origin: 0 0; filter: drop-shadow(0 3px 4px rgba(10, 1, 3, 0.45)); }
+.handtag--resting { position: absolute; left: 0; top: 0; margin: 0; rotate: 0deg; transform-origin: 0 0; will-change: transform; filter: drop-shadow(0 3px 4px rgba(10, 1, 3, 0.45)); }
 .handtag--resting .handtag__close, .handtag--resting .handtag__label, .handtag--resting .handtag__input, .handtag--resting .handtag__error { visibility: hidden; }
 .handtag--resting .seal { filter: drop-shadow(0 1.5px 1px rgba(20, 2, 4, 0.5)); }
 .tagdlg.is-lifting .handtag__close { opacity: 0; transition: opacity 0.3s; }
