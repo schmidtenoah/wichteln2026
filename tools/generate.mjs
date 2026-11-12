@@ -19,7 +19,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PARTICIPANTS, FORBIDDEN } from './participants.config.mjs';
+import { PARTICIPANTS, FORBIDDEN, FIXED } from './participants.config.mjs';
 import { normalizePassword } from '../public/js/crypto.js';
 import { fail, makePassword, makeAdminPassword, readWishSeed, buildData, printPasswords, optionValue } from './lib.mjs';
 
@@ -53,7 +53,7 @@ function parseArgs(argv) {
 
 /**
  * Validate the config and return the active names plus a lookup of forbidden draws.
- * @returns {{names:string[], forbidden:Set<string>}}
+ * @returns {{names:string[], forbidden:Set<string>, fixed:Map<string,string>}}
  */
 function loadConfig() {
   const all = PARTICIPANTS.map((p) => String(p.name).trim());
@@ -68,7 +68,22 @@ function loadConfig() {
     for (const n of [giver, receiver]) if (!all.includes(n)) fail(`Verbotenes Paar nennt "${n}", der Name steht aber nicht in PARTICIPANTS.`);
     if (names.includes(giver) && names.includes(receiver)) forbidden.add(`${giver}\u0000${receiver}`);
   }
-  return { names, forbidden };
+  const fixed = new Map();
+  const receivers = new Set();
+  for (const [giver, receiver] of FIXED) {
+    if (!names.includes(giver) || !names.includes(receiver)) {
+      fail(`Fixierte Zuordnung ${giver} -> ${receiver} nennt eine inaktive oder unbekannte Person.`);
+    }
+    if (giver === receiver || fixed.has(giver) || receivers.has(receiver)) {
+      fail(`Fixierte Zuordnung ${giver} -> ${receiver} ist widerspruechlich oder doppelt.`);
+    }
+    if (forbidden.has(`${giver}\u0000${receiver}`)) {
+      fail(`Fixierte Zuordnung ${giver} -> ${receiver} ist zugleich verboten.`);
+    }
+    fixed.set(giver, receiver);
+    receivers.add(receiver);
+  }
+  return { names, forbidden, fixed };
 }
 
 /**
@@ -88,15 +103,19 @@ function shuffle(list) {
 /**
  * Draw one Hamiltonian cycle: each person gives to the next one in a random
  * ring. A single ring rules out self-draws, mutual swaps and small loops.
- * Retries until no forbidden pair appears.
+ * Retries until all fixed and forbidden pairs are respected.
  * @param {string[]} names
  * @param {Set<string>} forbidden keys "giver\0receiver"
+ * @param {Map<string,string>} fixed required giver -> receiver
  * @returns {Map<string,string>} giver -> receiver (kept in memory only)
  */
-function drawCycle(names, forbidden) {
+function drawCycle(names, forbidden, fixed) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const ring = shuffle([...names]);
-    const ok = ring.every((giver, i) => !forbidden.has(`${giver}\u0000${ring[(i + 1) % ring.length]}`));
+    const ok = ring.every((giver, i) => {
+      const receiver = ring[(i + 1) % ring.length];
+      return !forbidden.has(`${giver}\u0000${receiver}`) && (!fixed.has(giver) || fixed.get(giver) === receiver);
+    });
     if (ok) return new Map(ring.map((giver, i) => [giver, ring[(i + 1) % ring.length]]));
   }
   fail('Keine gültige Auslosung gefunden. Sind die verbotenen Paare zu streng?');
@@ -111,8 +130,8 @@ async function main() {
     fail(`${relative(process.cwd(), opts.out)} gibt es schon. Neu auslosen macht ALLE alten Passwörter ungültig.\n  Wenn du das willst: node tools/generate.mjs --force\n  Wenn die Passwörter schon verschickt sind: node tools/upgrade.mjs (behält Passwörter und Auslosung).`);
   }
 
-  const { names, forbidden } = loadConfig();
-  const draw = drawCycle(names, forbidden);
+  const { names, forbidden, fixed } = loadConfig();
+  const draw = drawCycle(names, forbidden, fixed);
   const used = new Set();
   const passwords = new Map(names.map((n) => [n, makePassword(used)]));
   const adminPassword = opts.admin ? normalizePassword(opts.admin) : makeAdminPassword();

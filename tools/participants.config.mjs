@@ -1,9 +1,9 @@
 /**
  * Who plays, and who must not draw whom.
  *
- * After any change here run:  node tools/generate.mjs --force
- * That makes a completely new draw with new passwords for everyone,
- * so the old passwords stop working. Send everyone their new one.
+ * FIXED applies to new draws. To correct an existing encrypted draw
+ * without changing passwords, run tools/korrigiere-zuordnung.mjs instead.
+ * Running generate.mjs --force redraws everyone and changes all passwords.
  *
  * The order here is the order of the name tokens on the website.
  */
@@ -26,8 +26,15 @@ export const PARTICIPANTS = [
  * Forbidden draws as [giver, receiver]. One direction per line.
  * Pairs that mention an inactive person are ignored automatically.
  */
+export const FIXED = [
+  ['Simeon', 'Julian'],
+  ['Sinan', 'Evelyn'],
+];
+
 export const FORBIDDEN = [
   ['Evelyn', 'Simeon'],
   ['Noah', 'Sinan'],
   ['Sinan', 'Noah'],
+  ['Simeon', 'Evelyn'],
+  ['Sinan', 'Julian'],
 ];
