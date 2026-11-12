@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="theme-color" content="#2a070d">
+  <meta name="color-scheme" content="only light">
+  <title>Wichteln 2026</title>
+  <meta name="description" content="Wichteln 2026. Nur für uns.">
+  <meta property="og:title" content="Wichteln 2026">
+  <meta property="og:description" content="Nur für uns.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/pinyon-script-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/caveat-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/hanken-grotesk-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="img/baum-breit.webp" as="image" media="(min-aspect-ratio: 1/1)">
+  <link rel="preload" href="img/baum-hoch.webp" as="image" media="(max-aspect-ratio: 1/1)">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/wishlist.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <canvas class="snow" aria-hidden="true"></canvas>
+
+  <main id="landing" class="landing">
+    <header class="top">
+      <button class="sound-toggle" type="button" aria-pressed="true" aria-label="Ton">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="sound-toggle__body" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="sound-toggle__wave" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="sound-toggle__mute" d="m16 9.5 5 5m0-5-5 5"/></svg>
+      </button>
+    </header>
+
+    <div class="scene">
+      <h1 class="title"><span class="title__word">Wichteln</span> <span class="title__year" data-site="year">2026</span></h1>
+      <img class="scene__img" alt="" decoding="async" fetchpriority="high">
+      <ul class="pile" role="list" aria-label="Die Geschenke unter dem Baum"></ul>
+    </div>
+    <p class="pile__message" hidden></p>
+  </main>
+
+  <dialog id="tag" class="tagdlg" aria-labelledby="tag-from">
+    <article class="handtag handtag--big">
+      <span class="handtag__twine" aria-hidden="true"></span>
+      <span class="handtag__hole" aria-hidden="true"></span>
+      <button class="handtag__close" type="button" aria-label="Schließen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+      </button>
+      <p class="handtag__von">von</p>
+      <p class="handtag__name" id="tag-from"></p>
+      <form class="handtag__form" novalidate>
+        <div class="handtag__fuer">
+          <span class="handtag__fuer-label">für</span>
+          <span class="handtag__fuer-name" aria-live="polite"></span>
+        </div>
+        <label class="handtag__label" for="tag-password">Dein Passwort von der Wichtel-Redaktion</label>
+        <input class="handtag__input" id="tag-password" name="password" type="text"
+               autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+               enterkeyhint="go" aria-describedby="tag-error">
+        <p class="handtag__error" id="tag-error" role="alert"></p>
+        <button class="seal" type="submit" aria-label="Siegel brechen und freigeben, für wen das Geschenk ist">
+          <svg class="seal__svg" aria-hidden="true"></svg>
+        </button>
+      </form>
+    </article>
+  </dialog>
+
+  <section id="reveal" class="reveal" hidden aria-label="Dein Geschenk">
+    <div class="reveal__stage" aria-hidden="true"></div>
+    <div class="reveal__props" aria-hidden="true"></div>
+    <div class="reveal__dim" aria-hidden="true"></div>
+    <div class="reveal__sheet"></div>
+    <header class="reveal__bar">
+      <button class="icon-button reveal__back" type="button" aria-label="Zurück">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg>
+      </button>
+      <button class="reveal__switch" type="button" hidden></button>
+      <button class="sound-toggle" type="button" aria-pressed="true" aria-label="Ton">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="sound-toggle__body" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="sound-toggle__wave" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="sound-toggle__mute" d="m16 9.5 5 5m0-5-5 5"/></svg>
+      </button>
+    </header>
+    <p class="reveal__label visually-hidden" aria-live="polite">von <span class="minilabel__from"></span> für <span class="minilabel__to"></span></p>
+  </section>
+</body>
+</html>

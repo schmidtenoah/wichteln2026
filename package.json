@@ -1,0 +1,15 @@
+{
+  "name": "wichteln-2026",
+  "private": true,
+  "type": "module",
+  "description": "Secret Santa site with encrypted wish lists. Static, no backend, no dependencies.",
+  "scripts": {
+    "generate": "node tools/generate.mjs",
+    "redraw": "node tools/generate.mjs --force",
+    "upgrade": "node tools/upgrade.mjs",
+    "serve": "node tools/serve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

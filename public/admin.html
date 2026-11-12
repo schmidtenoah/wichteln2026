@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="theme-color" content="#2a070d">
+  <title>Wunschlisten verwalten – Wichteln</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/wishlist.css">
+  <script type="module" src="js/admin.js"></script>
+</head>
+<body>
+  <!-- Login -->
+  <main class="gate" id="gate">
+    <form class="gate__card" id="gate-form" novalidate>
+      <p class="gate__script" aria-hidden="true">Wichteln</p>
+      <h1 class="gate__title">Wunschlisten verwalten</h1>
+      <p class="gate__text">Mit dem Admin-Passwort aus dem Generator öffnest du alle Wunschlisten. Wer wen gezogen hat, siehst du hier nicht.</p>
+      <label class="field">
+        <span class="field__label">Admin-Passwort</span>
+        <input class="field__input" id="gate-password" type="password" autocomplete="current-password" spellcheck="false" autocapitalize="none" required>
+      </label>
+      <p class="gate__error" id="gate-error" role="alert"></p>
+      <button class="btn btn--primary btn--wide" type="submit" id="gate-submit">Öffnen</button>
+      <p class="gate__source" id="gate-source"></p>
+    </form>
+  </main>
+
+  <!-- Editor -->
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <div class="topbar__title">
+        <span class="topbar__script" aria-hidden="true">Wichteln</span>
+        <span class="topbar__label">Wunschlisten</span>
+      </div>
+      <p class="topbar__status" id="status" aria-live="polite"></p>
+      <div class="topbar__actions">
+        <button class="btn btn--quiet" type="button" id="open-settings">Einstellungen</button>
+        <button class="btn btn--quiet" type="button" id="download">data.json herunterladen</button>
+        <button class="btn btn--primary" type="button" id="publish" hidden>Veröffentlichen</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="people" aria-label="Teilnehmende">
+        <ul class="people__list" id="people" role="list"></ul>
+      </nav>
+
+      <main class="editor" id="editor" aria-labelledby="editor-name">
+        <header class="editor__head">
+          <h1 class="editor__name" id="editor-name"></h1>
+          <p class="editor__meta" id="editor-meta"></p>
+        </header>
+
+        <section class="block">
+          <label class="field">
+            <span class="field__label">Allgemeine Hinweise</span>
+            <span class="field__help">Größen, Lieblingsfarben, was gar nicht geht. Steht klein unter der Überschrift des Wunschzettels.</span>
+            <textarea class="field__input field__input--area" id="note" rows="3" maxlength="600"></textarea>
+          </label>
+        </section>
+
+        <section class="block" aria-labelledby="items-heading">
+          <div class="block__head">
+            <h2 class="block__title" id="items-heading">Wünsche</h2>
+            <p class="block__sum" id="items-sum"></p>
+          </div>
+          <div class="quick" id="quick" role="group" tabindex="0" aria-labelledby="quick-title" aria-describedby="quick-help">
+            <p class="quick__title" id="quick-title">Bild oder Link einfügen</p>
+            <p class="quick__help" id="quick-help">Hier klicken und <kbd>Strg</kbd>+<kbd>V</kbd>, oder ein Bild hierher ziehen. Im Shop „Bild kopieren“ → einfügen, dann den Link kopieren → einfügen: beides landet im selben Wunsch. Den Namen tippst du dazu.</p>
+          </div>
+          <ol class="items" id="items"></ol>
+          <p class="items__empty" id="items-empty">Noch keine Wünsche. Bild oder Link oben einfügen, einzeln hinzufügen oder die Nachricht unten reinkopieren.</p>
+          <button class="btn btn--ghost" type="button" id="add-item">Wunsch hinzufügen</button>
+        </section>
+
+        <section class="block block--paste">
+          <details class="paste" id="paste">
+            <summary class="paste__summary">Aus einer Nachricht übernehmen</summary>
+            <div class="paste__body">
+              <p class="field__help">Eine Zeile pro Wunsch. Preise wie „25 €“ und Links werden automatisch erkannt.</p>
+              <textarea class="field__input field__input--area" id="paste-text" rows="5" placeholder="Thermobecher grün, ca. 25 €&#10;Hörbuch (Krimi) 15€ https://…&#10;Wollsocken Gr. 39"></textarea>
+              <button class="btn btn--ghost" type="button" id="paste-apply">Als Wünsche hinzufügen</button>
+            </div>
+          </details>
+        </section>
+      </main>
+
+      <aside class="preview" aria-labelledby="preview-title">
+        <p class="preview__title" id="preview-title">So sieht es der Wichtel</p>
+        <div class="preview__card" id="preview"></div>
+        <p class="preview__help">Die Vorschau zeigt genau den Zettel, der aus dem Geschenk steigt. Tipp auf Bild oder Namen öffnet dort den Link.</p>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+      <span class="toast__text" id="toast-text"></span>
+      <button class="toast__action" type="button" id="toast-action" hidden></button>
+    </div>
+  </div>
+
+  <template id="item-template">
+    <li class="item">
+      <div class="item__grid">
+        <div class="item__image" data-drop>
+          <img class="item__thumb" alt="" hidden>
+          <span class="item__placeholder" aria-hidden="true">Bild</span>
+          <div class="item__image-actions">
+            <label class="btn btn--ghost btn--small">
+              Bild wählen
+              <input class="visually-hidden" type="file" accept="image/*" data-image-input>
+            </label>
+            <button class="btn btn--quiet btn--small" type="button" data-act="image-remove" hidden>Entfernen</button>
+            <span class="field__help item__image-help">oder hierher ziehen bzw. mit Strg+V einfügen</span>
+          </div>
+        </div>
+        <label class="field field--title">
+          <span class="field__label">Name</span>
+          <input class="field__input" data-field="title" type="text" maxlength="160" placeholder="z. B. Thermobecher Salbei">
+        </label>
+        <label class="field field--link">
+          <span class="field__label">Link <span class="field__optional">Bild und Name öffnen ihn</span></span>
+          <input class="field__input" data-field="link" type="url" inputmode="url" maxlength="600" placeholder="https://">
+        </label>
+      </div>
+      <div class="item__tools">
+        <button class="icon-btn" type="button" data-act="up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14.5 6-6 6 6"/></svg><span class="visually-hidden">Nach oben</span></button>
+        <button class="icon-btn" type="button" data-act="down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9.5 6 6 6-6"/></svg><span class="visually-hidden">Nach unten</span></button>
+        <button class="icon-btn icon-btn--danger" type="button" data-act="remove"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg><span class="visually-hidden">Löschen</span></button>
+      </div>
+    </li>
+  </template>
+
+  <dialog class="dialog" id="settings" aria-labelledby="settings-title">
+    <form class="dialog__card" method="dialog" id="settings-form">
+      <h2 class="dialog__title" id="settings-title">Einstellungen</h2>
+
+      <section class="dialog__section">
+        <h3 class="dialog__subtitle">Direkt auf GitHub veröffentlichen</h3>
+        <p class="field__help">Optional. Dann reicht ein Klick auf „Veröffentlichen“, und die Seite ist nach etwa einer Minute aktuell. Ohne diese Angaben lädst du die Datei herunter und lädst sie selbst hoch.</p>
+        <div class="dialog__grid">
+          <label class="field"><span class="field__label">Konto</span><input class="field__input" id="gh-owner" type="text" placeholder="dein-name" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span class="field__label">Repository</span><input class="field__input" id="gh-repo" type="text" placeholder="wichteln" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span class="field__label">Branch</span><input class="field__input" id="gh-branch" type="text" placeholder="main" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span class="field__label">Pfad</span><input class="field__input" id="gh-path" type="text" placeholder="public/data.json" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <label class="field">
+          <span class="field__label">Zugangs-Token</span>
+          <span class="field__help">Ein „Fine-grained token“ nur für dieses Repository mit der Berechtigung „Contents: Read and write“. Anleitung in der README.</span>
+          <input class="field__input" id="gh-token" type="password" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="check">
+          <input type="checkbox" id="gh-remember">
+          <span>Token auf diesem Gerät merken</span>
+        </label>
+      </section>
+
+      <section class="dialog__section">
+        <h3 class="dialog__subtitle">Sicherung</h3>
+        <p class="field__help">Die Sicherung enthält alle Wünsche im Klartext, aber keine Auslosung. Brauchst du, falls du neu auslosen musst: <code>node tools/generate.mjs --force --wishes sicherung.json</code></p>
+        <div class="dialog__row">
+          <button class="btn btn--ghost" type="button" id="backup-export">Sicherung herunterladen</button>
+          <label class="btn btn--ghost">
+            Sicherung einlesen
+            <input class="visually-hidden" type="file" id="backup-import" accept="application/json,.json">
+          </label>
+        </div>
+      </section>
+
+      <div class="dialog__actions">
+        <button class="btn btn--primary" type="submit" value="save">Fertig</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

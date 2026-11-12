@@ -1,0 +1,365 @@
+/* ==========================================================================
+   Wichteln 2026
+   A tree in a dark warm room, gifts underneath with hand-made tags.
+   Inside each gift: a wish list from the Wichtel-Redaktion, one card,
+   the wishes scattered across it.
+   ========================================================================== */
+
+@font-face { font-family: 'Pinyon Script'; src: url('../fonts/pinyon-script-latin.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Hanken Grotesk'; src: url('../fonts/hanken-grotesk-latin-var.woff2') format('woff2'); font-weight: 300 800; font-display: swap; }
+@font-face { font-family: 'Fraunces'; src: url('../fonts/fraunces-latin-var.woff2') format('woff2'); font-weight: 300 900; font-display: swap; }
+@font-face { font-family: 'Caveat'; src: url('../fonts/caveat-latin-var.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: 'Archivo'; src: url('../fonts/archivo-latin-var.woff2') format('woff2'); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+@font-face { font-family: 'Bagel Fat One'; src: url('../fonts/bagel-fat-one-latin.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+
+:root {
+  --night: #17040a;
+  --bordeaux: #330a12;
+  --wine: #5a1220;
+  --candle: #f2d79d;
+  --snow: #f7eee0;
+  --snow-dim: rgba(247, 238, 224, 0.7);
+  /* Toy catalogue print */
+  --red: #d71920;
+  --yellow: #ffd200;
+  --blue: #0b2459;
+  --royal: #1f56c2;
+  --green: #16613f;
+  --paper: #fffdf7;
+  --newsprint: #f5eedd;
+  --ink: #1d1a22;
+  --grey: #6d6872;
+  --marker: #e5142e;
+  --script: 'Pinyon Script', 'Snell Roundhand', cursive;
+  --hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --logo: 'Bagel Fat One', 'Arial Rounded MT Bold', sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --pad: clamp(16px, 4vw, 48px);
+  --ease-out: cubic-bezier(0.16, 0.84, 0.24, 1);
+  --ease-soft: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--night); }
+body {
+  margin: 0;
+  min-height: 100svh;
+  color: var(--snow);
+  font-family: var(--sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(60% 45% at 50% 66%, rgba(214, 130, 70, 0.22), rgba(214, 130, 70, 0) 70%),
+    radial-gradient(120% 90% at 50% 0%, #4a0e19 0%, var(--bordeaux) 48%, var(--night) 100%) fixed;
+  overflow-x: hidden;
+}
+p, h1, h2, h3, h4, dl, dd, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; border-radius: 6px; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.snow { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.icon-button, .sound-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(247, 238, 224, 0.22);
+  border-radius: 50%;
+  background: rgba(23, 4, 10, 0.45);
+  color: var(--snow);
+  transition: background-color 0.25s var(--ease-soft), opacity 0.2s;
+}
+.icon-button:hover, .sound-toggle:hover { background: rgba(23, 4, 10, 0.7); }
+.icon-button:disabled { opacity: 0.3; cursor: default; }
+.icon-button svg, .sound-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sound-toggle__body { fill: currentColor; }
+.sound-toggle[aria-pressed='true'] .sound-toggle__mute,
+.sound-toggle[aria-pressed='false'] .sound-toggle__wave { display: none; }
+
+/* --------------------------------------------------------------------------
+   Landing: the tree, the title behind it, the gifts with their tags
+   -------------------------------------------------------------------------- */
+
+/* Pushed down a little: the sky above the title is part of the picture, not the page edge. */
+.landing { position: relative; z-index: 2; display: grid; place-items: center; min-height: 100svh; padding-block-start: 7svh; overflow: clip; }
+.top { position: absolute; inset: 0 0 auto; z-index: 6; padding: max(12px, env(safe-area-inset-top)) var(--pad) 0; pointer-events: none; }
+.top .sound-toggle { margin-left: auto; pointer-events: auto; }
+
+.scene { position: relative; container-type: inline-size; width: min(100vw, calc(93svh / 1.5)); aspect-ratio: 1000 / 1500; }
+@media (min-aspect-ratio: 1/1) {
+  .scene { width: min(100vw, calc(93svh * 1.6)); aspect-ratio: 1600 / 1000; }
+}
+.scene__img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; user-select: none; -webkit-user-drag: none; pointer-events: none; animation: fade-in 1s 0.1s var(--ease-soft) both; }
+/* Soften the floor shadows where the render ends (bottom and both sides), so no edge shows on the dark room. */
+.scene__img {
+  --fade-x: linear-gradient(90deg, transparent, #000 3.6%, #000 96.4%, transparent);
+  --fade-y: linear-gradient(180deg, #000 84%, transparent 98%);
+  -webkit-mask-image: var(--fade-x), var(--fade-y);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--fade-x), var(--fade-y);
+  mask-composite: intersect;
+}
+.pile, .gift { display: contents; }
+.pile__message { max-width: 30em; margin: 40px auto; padding: 0 var(--pad); color: var(--snow-dim); text-align: center; }
+
+/* The title sits behind the tree, which covers part of it. */
+.title {
+  position: absolute;
+  inset: 3.5% 0 auto;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.15em;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  animation: rise-in 1.4s var(--ease-out) both;
+}
+.title__word {
+  font-family: var(--script);
+  font-size: 25cqw;
+  padding: 0 0.12em 0.12em;
+  background: linear-gradient(180deg, #fff8ea 15%, var(--snow) 50%, var(--candle) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.title__year { font-family: var(--serif); font-style: italic; font-size: 4.6cqw; color: var(--candle); }
+.scene[data-layout='breit'] .title { inset-block-start: 1%; }
+.scene[data-layout='breit'] .title__word { font-size: 17cqw; }
+.scene[data-layout='breit'] .title__year { font-size: 2.8cqw; }
+
+.gift__hit { position: absolute; z-index: 4; padding: 0; border: 0; border-radius: 14%; background: transparent; -webkit-tap-highlight-color: transparent; }
+.gift__hit:focus { outline: none; }
+.gift__hit:focus-visible { outline: 2px dashed var(--candle); outline-offset: 2px; }
+/* Hover: a little candlelight falls on the gift. */
+.gift__hit::before { content: ''; position: absolute; inset: 14% 10%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 222, 170, 0.26), rgba(255, 222, 170, 0)); mix-blend-mode: soft-light; opacity: 0; transition: opacity 0.4s var(--ease-soft); pointer-events: none; }
+.gift__hit:hover::before, .gift__hit:focus-visible::before { opacity: 1; }
+
+/* The name, written onto the paper tag that is part of the render. Size and angle
+   come from Blender (--tw/--th in cqw, --angle); the ink sits in the paper's grain. */
+.gift__tag {
+  position: absolute;
+  z-index: 3;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--tw) * 1cqw);
+  height: calc(var(--th) * 1cqw);
+  display: grid;
+  place-items: center;
+  translate: -50% -50%;
+  rotate: var(--angle);
+  pointer-events: none;
+  /* Fade in with the picture; "backwards" only, so the ink keeps blending into the paper afterwards. */
+  animation: fade-in 1s 0.1s var(--ease-soft) backwards;
+}
+.gift__name {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: min(calc(var(--th) * 0.86cqw), calc(var(--tw) * 1cqw / (var(--len) * 0.44)));
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--tag-ink);
+  opacity: 0.9;
+  scale: var(--sx, 1) 1;
+  mix-blend-mode: multiply;
+}
+.gift__tag[data-paper='tanne'] .gift__name, .gift__tag[data-paper='rot'] .gift__name { mix-blend-mode: screen; opacity: 0.86; }
+
+
+/* --------------------------------------------------------------------------
+   Hand-made tags
+   -------------------------------------------------------------------------- */
+
+.handtag { --wax: #a5121c; --wax-ink: #f7d6c6; position: relative; color: var(--tag-ink, #2b1d14); }
+.handtag::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    url('../img/tex/fasern.png') 0 0 / 160px 160px,
+    radial-gradient(120% 80% at 20% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(176deg, var(--tag-paper, #c9a273), color-mix(in srgb, var(--tag-paper, #c9a273) 86%, #000));
+  clip-path: var(--tag-clip);
+}
+.handtag[data-paper='rot'] { --wax: #c8962e; --wax-ink: #fff3d6; }
+.handtag__hole { position: absolute; left: 50%; top: 7%; width: 11%; aspect-ratio: 1; translate: -50% 0; border-radius: 50%; background: #1a0508; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+.doodle { position: absolute; bottom: 7%; width: 22%; aspect-ratio: 1; fill: none; stroke: var(--tag-accent); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; rotate: -10deg; }
+.handtag[data-doodle-at='right'] .doodle { right: 7%; }
+.handtag[data-doodle-at='left'] .doodle { left: 7%; rotate: 12deg; }
+
+
+/* --------------------------------------------------------------------------
+   Tag dialog with the wax seal
+   -------------------------------------------------------------------------- */
+
+.tagdlg { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0 16px 40px; border: 0; background: transparent; overflow: hidden auto; }
+.tagdlg::backdrop { background: rgba(14, 2, 6, 0.76); animation: fade-in 0.4s var(--ease-soft) both; }
+.tagdlg.is-closing::backdrop, .tagdlg.is-lifting::backdrop { animation: fade-out 0.45s var(--ease-soft) both; }
+.handtag--big { width: min(340px, 100%); margin: max(11vh, 76px) auto 0; padding: 74px 30px 30px; rotate: calc(var(--tilt) * 0.35); transform-origin: 50% 0; filter: drop-shadow(0 24px 28px rgba(6, 1, 2, 0.6)); }
+.handtag--big .handtag__hole, .handtag--hung .handtag__hole { width: 22px; top: 26px; }
+.handtag--big .doodle, .handtag--hung .doodle { width: 54px; bottom: 18px; }
+.handtag__twine { position: absolute; left: 50%; bottom: calc(100% - 37px); width: 3px; height: 100vh; translate: -50% 0; background: repeating-linear-gradient(160deg, #d8c39a 0 3px, #a98a5a 3px 5px); }
+.handtag__close { position: absolute; top: 16px; right: 18px; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: 0.7; }
+.handtag__close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.handtag__close:hover { opacity: 1; }
+.handtag--big .handtag__von, .handtag--hung .handtag__von { font-family: var(--hand); font-size: 1.35rem; line-height: 1; opacity: 0.8; }
+.handtag--big .handtag__name, .handtag--hung .handtag__name { font-family: var(--hand); font-weight: 700; font-size: 3rem; line-height: 1.1; }
+.handtag__fuer { position: relative; display: flex; align-items: baseline; gap: 10px; min-height: 4.2rem; margin-top: 8px; padding-bottom: 6px; border-bottom: 1.5px dashed color-mix(in srgb, currentColor 55%, transparent); }
+.handtag__fuer-label { font-family: var(--hand); font-size: 1.35rem; opacity: 0.8; }
+.handtag__fuer-name { padding-right: 0.3em; font-family: var(--hand); font-weight: 700; font-size: 2.7rem; line-height: 1.15; white-space: nowrap; }
+.handtag__fuer-name.is-writing { animation: write var(--write, 1s) steps(28, end) both; }
+
+/* The wax seal: stamp and button in one. Closes the tag at its bottom edge, half over the paper.
+   Drawn by js/seal.js: wax lit from the top left, a pressed well, raised letters. */
+.seal {
+  --wax-hi: color-mix(in srgb, var(--wax) 62%, #ff9c86);
+  --wax-lo: color-mix(in srgb, var(--wax) 58%, #1a0003);
+  position: relative;
+  justify-self: center;
+  width: 112px;
+  height: 112px;
+  margin: 18px 0 -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  rotate: -6deg;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 1.5px rgba(20, 2, 4, 0.45)) drop-shadow(0 7px 8px rgba(20, 2, 4, 0.32));
+  animation: seal-call 2.6s 1.2s ease-in-out infinite;
+  transition: transform 0.25s var(--ease-spring);
+}
+.seal:hover { transform: scale(1.05) rotate(3deg); }
+.seal:active { transform: scale(0.95); }
+.seal:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.seal:hover, .seal:focus-visible { animation: none; }
+@keyframes seal-call { 0%, 70%, 100% { scale: 1; } 80% { scale: 1.05; } 90% { scale: 0.985; } }
+.seal[aria-busy='true'] { cursor: progress; animation: seal-wobble 0.6s ease-in-out infinite; }
+.seal__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.seal__s1 { stop-color: var(--wax-hi); }
+.seal__s2 { stop-color: var(--wax); }
+.seal__s3 { stop-color: var(--wax-lo); }
+.seal__w1 { stop-color: color-mix(in srgb, var(--wax) 88%, #ff9c86); }
+.seal__w2 { stop-color: color-mix(in srgb, var(--wax) 80%, #1a0003); }
+.seal__bevel-dark { fill: none; stroke: rgba(25, 0, 3, 0.55); stroke-width: 1.6; stroke-linecap: round; }
+.seal__bevel-light { fill: none; stroke: rgba(255, 205, 190, 0.5); stroke-width: 1.3; stroke-linecap: round; }
+.seal__ring { fill: none; stroke: color-mix(in srgb, var(--wax) 55%, #000); stroke-width: 0.8; opacity: 0.8; }
+.seal__raised { fill: color-mix(in srgb, var(--wax) 92%, #ffb3a2); }
+.seal__word { font-family: var(--serif); font-weight: 700; font-size: 7.4px; letter-spacing: 1.15px; }
+.seal__year { font-family: var(--serif); font-weight: 600; font-size: 4.6px; letter-spacing: 1px; opacity: 0.85; }
+.seal__mono { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 21px; }
+.seal__half { transform-box: view-box; transform-origin: 50% 50%; transition: transform 0.42s cubic-bezier(0.2, 1.4, 0.4, 1); }
+/* Broken: two halves, shifted apart, still sitting on the tag. */
+.seal.is-broken { animation: none; pointer-events: none; transform: none; }
+.seal.is-broken .seal__half--l { transform: translate(-1.6px, 1.2px) rotate(-3.5deg); }
+.seal.is-broken .seal__half--r { transform: translate(1.8px, -0.6px) rotate(2.8deg); }
+
+.handtag__form { display: grid; }
+.handtag__label { margin-top: 22px; font-family: var(--hand); font-size: 1.2rem; line-height: 1.15; opacity: 0.85; }
+.handtag__input { width: 100%; margin-top: 4px; padding: 2px 0; border: 0; border-bottom: 1.5px solid currentColor; border-radius: 0; background: transparent; color: inherit; font-family: var(--hand); font-weight: 700; font-size: 1.8rem; line-height: 1.2; }
+.handtag__input:focus { outline: none; box-shadow: 0 1.5px 0 currentColor; }
+.handtag__error { margin-top: 6px; font-family: var(--hand); font-weight: 700; font-size: 1.3rem; line-height: 1.1; color: var(--wax); }
+.handtag[data-paper='rot'] .handtag__error, .handtag[data-paper='tanne'] .handtag__error { color: #ffd98a; }
+.handtag__error:empty { display: none; }
+.tagdlg.is-unlocked .handtag__label, .tagdlg.is-unlocked .handtag__input { opacity: 0; transition: opacity 0.35s; }
+
+/* --------------------------------------------------------------------------
+   Reveal: the page flies into the picture; the 3D gift stands in for the
+   rendered one (a clean plate hides the rendered one), the tag and the wish
+   list are HTML laid onto planes in the scene.
+   -------------------------------------------------------------------------- */
+
+html.is-revealing body { overflow: hidden; }
+html.is-revealing .scene { will-change: transform, filter; transform-origin: 0 0; }
+html.is-revealing .top { opacity: 0; transition: opacity 0.3s; }
+.scene__plate {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--px) * 100%);
+  top: calc(var(--py) * 100%);
+  width: calc(var(--pw) * 100%);
+  height: calc(var(--ph) * 100%);
+  pointer-events: none;
+  user-select: none;
+  /* The same soft edges as the picture, in the picture's coordinates. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3.6%, #000 96.4%, transparent), linear-gradient(180deg, #000 84%, transparent 98%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 3.6%, #000 96.4%, transparent), linear-gradient(180deg, #000 84%, transparent 98%);
+  mask-composite: intersect;
+  -webkit-mask-size: 100cqw calc(var(--ratio) * 100cqw);
+  mask-size: 100cqw calc(var(--ratio) * 100cqw);
+  -webkit-mask-position: calc(var(--px) * -100cqw) calc(var(--py) * var(--ratio) * -100cqw);
+  mask-position: calc(var(--px) * -100cqw) calc(var(--py) * var(--ratio) * -100cqw);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.reveal { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+.reveal[hidden] { display: none; }
+/* Closer to the gift, the room around it darkens a little, like a lamp on the floor. */
+.reveal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(75% 70% at 50% 58%, rgba(14, 2, 6, 0) 40%, rgba(14, 2, 6, 0.55));
+  opacity: var(--near, 0);
+}
+.reveal__stage, .reveal__scene, .reveal__props, .reveal__sheet { position: absolute; inset: 0; }
+.reveal__stage { opacity: var(--fade, 0); }
+.reveal__stage canvas { display: block; width: 100%; height: 100%; }
+.reveal__props { overflow: hidden; }
+.reveal__dim { position: absolute; inset: 0; background: rgba(14, 2, 6, 0.6); opacity: 0; transition: opacity 0.45s var(--ease-soft); }
+.reveal.is-reading .reveal__dim { opacity: 1; }
+/* Leaving: the list and the tag go first, then the room pulls back. */
+.reveal.is-leaving .reveal__props, .reveal.is-leaving .reveal__sheet { opacity: 0; transition: opacity 0.35s var(--ease-soft); }
+.reveal__sheet { overflow: hidden; }
+.reveal.is-reading .reveal__sheet { overflow: hidden auto; overscroll-behavior: contain; pointer-events: auto; }
+/* Room below the card when it is read and longer than the screen. */
+.reveal__sheet::after { content: ''; position: absolute; left: 0; top: 0; width: 1px; height: var(--sheet-bottom, 0); pointer-events: none; }
+.wlwrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(20, 4, 6, 0.25)) drop-shadow(0 18px 24px rgba(14, 2, 6, 0.35));
+}
+.wlwrap[hidden] { display: none; }
+.wlwrap:focus { outline: none; }
+.wlwrap:focus-visible .wl { outline: 3px solid var(--candle); outline-offset: 6px; }
+.wlwrap.is-hover .wl { --glow: 0.22 !important; }
+.reveal:not(.is-ready) .wlwrap { cursor: default; }
+.reveal.is-reading .wlwrap { cursor: auto; }
+.reveal__bar { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: max(12px, env(safe-area-inset-top)) var(--pad) 0; pointer-events: none; opacity: 0; transition: opacity 0.5s 0.4s var(--ease-soft); }
+.reveal.is-active .reveal__bar { opacity: 1; }
+.reveal.is-leaving .reveal__bar { opacity: 0; transition-delay: 0s; }
+.reveal__bar > * { pointer-events: auto; }
+.reveal__switch { min-height: 40px; margin-inline: auto; padding: 0 18px; border: 1px solid rgba(247, 238, 224, 0.3); border-radius: 999px; background: rgba(23, 4, 10, 0.55); color: var(--snow); font-family: var(--serif); font-style: italic; font-size: 1rem; }
+.reveal__switch:hover { background: rgba(23, 4, 10, 0.8); }
+.reveal__switch[hidden] { display: none; }
+/* The tag from the dialog, resting against the gift: the same element, laid onto its plane. */
+.handtag--resting { position: absolute; left: 0; top: 0; margin: 0; rotate: 0deg; transform-origin: 0 0; filter: drop-shadow(0 3px 4px rgba(10, 1, 3, 0.45)); }
+.handtag--resting .handtag__close, .handtag--resting .handtag__label, .handtag--resting .handtag__input, .handtag--resting .handtag__error { visibility: hidden; }
+.handtag--resting .seal { filter: drop-shadow(0 1.5px 1px rgba(20, 2, 4, 0.5)); }
+.tagdlg.is-lifting .handtag__close { opacity: 0; transition: opacity 0.3s; }
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes tag-in { from { opacity: 0; transform: translateY(-10px) rotate(-8deg); } }
+@keyframes write { from { clip-path: inset(-30% 100% -30% -10%); } to { clip-path: inset(-30% -30% -30% -10%); } }
+@keyframes seal-wobble { 50% { transform: rotate(6deg) scale(1.04); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
