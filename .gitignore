@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+Thumbs.db
+# Never commit plaintext secrets or wish backups
+passwoerter.txt
+*.passwords.txt
+wunschlisten-sicherung*.json
+# Blender autosaves
+blender/*.blend1
+# Editor settings
+.idea/
