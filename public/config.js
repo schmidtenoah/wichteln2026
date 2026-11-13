@@ -11,7 +11,7 @@ export const SITE = {
    * false: everyone sees the empty wish list ("Noch ganz leer."), whatever is already in data.json.
    * Set to true once the lists are complete (by wishDeadline); nobody needs a new password for that.
    */
-  wishesOpen: false,
+  wishesOpen: true,
   /** By when every wish list is on the site (the editors' promise on an empty wish list). */
   wishDeadline: '1. Dezember',
   /** Spending limit in euros. Shown everywhere and used for the "Merkzettel". */
