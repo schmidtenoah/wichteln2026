@@ -123,6 +123,8 @@
 .wl__pic {
   position: absolute;
   display: grid;
+  /* A fixed 1x1 track: tall pictures shrink into the square instead of stretching the cell. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: end center;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
